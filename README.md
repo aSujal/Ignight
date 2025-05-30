@@ -4,23 +4,23 @@ Ignight is a full-stack React and Node.js application containerized with Docker 
 
 ## Quick Setup
 
-1. **Clone the repo:**
+1. **Clone the repository:**
 
    ```bash
-   git clone <repo-url>
+   git clone <repository-url>
    cd ignight
-```
+   ```
 
-2. **Build and run the containers:**
+2. **Build and start the containers:**
 
    ```bash
    docker-compose up --build
-```
+   ```
 
 3. **Access the application:**
 
-   - Frontend: http://localhost:3000
-   - Backend: http://localhost:4000
+   - Frontend: [http://localhost:3000](http://localhost:3000)
+   - Backend: [http://localhost:4000](http://localhost:4000)
 
 ## Project Structure
 
