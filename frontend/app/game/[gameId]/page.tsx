@@ -6,265 +6,62 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Progress } from "@/components/ui/progress"
 import { Copy, Vote, Timer, ArrowLeft, AlertCircle, UserPlus } from "lucide-react"
-import { useParams, useRouter, useSearchParams } from "next/navigation"
-import { usePollingGame } from "@/hooks/usePollingGame"
+import { useParams, useRouter } from "next/navigation"
 import { useLocalStorage } from "@/hooks/useLocalStorage"
 import { Chat } from "@/components/chat"
 import { ConnectionStatus } from "@/components/connection-status"
-import { DebugPanel } from "@/components/debug-panel"
-import { PlayerList } from "@/components/player-list"
-import logger from "@/lib/logger"
+import { useGameSocket } from "@/hooks/useGameSocket"
 
 export default function GamePage() {
   const params = useParams()
-  const searchParams = useSearchParams()
   const router = useRouter()
-  const gameId = params.gameId as string
-  const roomCodeFromUrl = searchParams.get("room")
-
+  const gameCode = params.gameId as string
   // Get username from localStorage
   const [storedUsername] = useLocalStorage("gamehub-username", "")
 
-  const {
-    room,
-    currentPlayer,
-    chatMessages,
-    error,
-    connectionStatus,
-    isLoading,
-    leaveRoom,
-    setReady,
-    startGame,
-    submitAnswer,
-    vote,
-    sendMessage,
-    joinExistingRoom,
-  } = usePollingGame()
+  const { game, error, loading, isConnected, joinRoom } = useGameSocket()
+
+  useEffect(() => {
+    if (gameCode && storedUsername) {
+      joinRoom(gameCode, storedUsername)
+    }
+  }, [gameCode, storedUsername, joinRoom])
+
+  console.log("game",game)
 
   const [playerAnswer, setPlayerAnswer] = useState("")
   const [isChatOpen, setIsChatOpen] = useState(false)
-  const [gameData, setGameData] = useState<any>(null)
-  const [hasInitialized, setHasInitialized] = useState(false)
   const [joinAttempted, setJoinAttempted] = useState(false)
-  const [initializationTimeout, setInitializationTimeout] = useState(false)
-
-  // Initialize logging for this page
-  useEffect(() => {
-    logger.info("Game page loaded", {
-      gameId,
-      roomCodeFromUrl,
-      storedUsername,
-      timestamp: new Date().toISOString(),
-    })
-
-    return () => {
-      logger.info("Game page unloaded", { gameId, roomCodeFromUrl })
-    }
-  }, [gameId, roomCodeFromUrl, storedUsername])
-
-  // Auto-join room if we have room code and username
-  useEffect(() => {
-    if (roomCodeFromUrl && storedUsername && !joinAttempted && !room && !isLoading && !initializationTimeout) {
-      setJoinAttempted(true)
-      logger.info("Auto-joining room from URL", {
-        roomCode: roomCodeFromUrl,
-        username: storedUsername,
-      })
-
-      joinExistingRoom(roomCodeFromUrl, storedUsername)
-    }
-  }, [roomCodeFromUrl, storedUsername, joinAttempted, room, isLoading, joinExistingRoom, initializationTimeout])
-
-  // Handle initialization timeout
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setHasInitialized(true)
-      setInitializationTimeout(true)
-
-      if (!room && !error && !isLoading) {
-        logger.warn("Game page timeout - no room data received", {
-          gameId,
-          roomCodeFromUrl,
-          storedUsername,
-          joinAttempted,
-          connectionStatus,
-        })
-
-        if (!roomCodeFromUrl) {
-          logger.info("No room code in URL, redirecting to home")
-          router.push("/")
-        } else if (!storedUsername) {
-          logger.info("No stored username, redirecting to home")
-          router.push("/")
-        }
-      }
-    }, 3000) // Reduced to 3 seconds
-
-    return () => clearTimeout(timer)
-  }, [room, error, isLoading, gameId, roomCodeFromUrl, storedUsername, router, joinAttempted, connectionStatus])
-
-  // Mark as initialized when we have room data
-  useEffect(() => {
-    if (room && !hasInitialized) {
-      setHasInitialized(true)
-      logger.info("Game page initialized with room data", {
-        roomCode: room.code,
-        gameState: room.gameState,
-        playerCount: room.players.length,
-      })
-    }
-  }, [room, hasInitialized])
-
-  // Log room and player changes
-  useEffect(() => {
-    if (room) {
-      logger.roomAction(
-        room.code,
-        "room_data_updated",
-        `Room data updated - ${room.players.length} players, state: ${room.gameState}`,
-        {
-          playerCount: room.players.length,
-          gameState: room.gameState,
-          timeLeft: room.timeLeft,
-          players: room.players.map((p) => ({
-            id: p.id,
-            name: p.name,
-            isConnected: p.isConnected,
-            isReady: p.isReady,
-          })),
-          gameData: room.gameData ? "present" : "missing",
-        },
-      )
-    }
-  }, [room])
-
-  // Handle imposter game data with proper null checks
-  useEffect(() => {
-    if (
-      room?.gameType === "imposter" &&
-      room.gameData &&
-      room.gameData.wordSet &&
-      room.gameData.wordSet.word &&
-      room.gameData.wordSet.imposter &&
-      currentPlayer &&
-      typeof room.gameData.imposterIndex === "number"
-    ) {
-      const isImposter = room.players.findIndex((p) => p.id === currentPlayer.id) === room.gameData.imposterIndex
-      const word = isImposter ? room.gameData.wordSet.imposter : room.gameData.wordSet.word
-
-      setGameData({ word, isImposter })
-
-      logger.gameAction("imposter_role_assigned", `Player role assigned: ${isImposter ? "IMPOSTER" : "INNOCENT"}`, {
-        playerId: currentPlayer.id,
-        playerName: currentPlayer.name,
-        word,
-        isImposter,
-        wordSet: room.gameData.wordSet,
-        imposterIndex: room.gameData.imposterIndex,
-      })
-    } else if (room?.gameType === "imposter" && room.gameState === "playing" && !gameData) {
-      // Game is playing but we don't have game data yet
-      logger.warn("Imposter game is playing but game data is incomplete", {
-        roomCode: room.code,
-        gameState: room.gameState,
-        hasGameData: !!room.gameData,
-        hasWordSet: !!(room.gameData && room.gameData.wordSet),
-        hasCurrentPlayer: !!currentPlayer,
-        imposterIndex: room.gameData?.imposterIndex,
-      })
-    }
-  }, [room, currentPlayer, gameData])
 
   const handleLeaveRoom = async () => {
-    logger.playerAction(currentPlayer?.id || "unknown", "leave_game_page", "Player leaving game page", {
-      gameId,
-      roomCode: room?.code,
-    })
-
-    await leaveRoom()
+    // await leaveRoom()
     router.push("/")
   }
 
   const handleSubmitAnswer = async () => {
     if (!playerAnswer.trim()) return
 
-    logger.playerAction(currentPlayer?.id || "unknown", "submit_answer", "Player submitting answer", {
-      gameId,
-      roomCode: room?.code,
-      answerLength: playerAnswer.trim().length,
-    })
-
-    await submitAnswer(playerAnswer.trim())
+    // await submitAnswer(playerAnswer.trim())
     setPlayerAnswer("")
   }
 
   const handleVote = async (playerId: string) => {
-    const targetPlayer = room?.players.find((p) => p.id === playerId)
+    const targetPlayer = game?.players.find((p) => p.id === playerId)
 
-    logger.playerAction(currentPlayer?.id || "unknown", "vote_cast", `Player voting for ${targetPlayer?.name}`, {
-      gameId,
-      roomCode: room?.code,
-      targetPlayerId: playerId,
-      targetPlayerName: targetPlayer?.name,
-    })
-
-    await vote(playerId)
-  }
-
-  const copyRoomCode = () => {
-    if (room?.code) {
-      navigator.clipboard.writeText(room.code)
-      logger.info("Room code copied to clipboard", { roomCode: room.code })
-    }
+    // await vote(playerId)
   }
 
   const handleRetryJoin = () => {
-    if (roomCodeFromUrl && storedUsername) {
+    if (gameCode && storedUsername) {
       setJoinAttempted(false)
-      setInitializationTimeout(false)
-      setHasInitialized(false)
-      logger.info("Retrying room join", {
-        roomCode: roomCodeFromUrl,
-        username: storedUsername,
-      })
     }
   }
 
-  const getGameTitle = () => {
-    switch (gameId) {
-      case "imposter":
-        return "Who's the Imposter?"
-      case "question":
-        return "Odd One Out"
-      case "music":
-        return "Guess the Sound"
-      case "would-you-rather":
-        return "Would You Rather"
-      default:
-        return "Game"
-    }
-  }
 
-  // Loading state - only show if we haven't initialized and are still within timeout
-  if (!hasInitialized && !initializationTimeout) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-white text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-xl mb-2">Loading game...</p>
-          <p className="text-sm text-gray-400">
-            {connectionStatus === "connecting" ? "Connecting to room..." : "Initializing game..."}
-          </p>
-          {roomCodeFromUrl && <p className="text-sm text-gray-400 mt-2">Room: {roomCodeFromUrl}</p>}
-        </div>
-      </div>
-    )
-  }
 
   // Error state - no room and no username
-  if (!storedUsername && roomCodeFromUrl) {
+  if (!storedUsername && gameCode) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-white text-center max-w-md">
@@ -280,7 +77,7 @@ export default function GamePage() {
   }
 
   // Error state - room not found or other errors
-  if (error && !room && hasInitialized) {
+  if (error && !game) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <div className="text-white text-center max-w-md">
@@ -288,13 +85,13 @@ export default function GamePage() {
           <h2 className="text-2xl font-bold mb-4">Unable to Join Game</h2>
           <p className="text-gray-300 mb-6">{error}</p>
           <div className="space-y-2">
-            {roomCodeFromUrl && storedUsername && (
+            {gameCode && storedUsername && (
               <Button
                 onClick={handleRetryJoin}
                 className="bg-gradient-to-r from-blue-500 to-cyan-600 mr-2"
-                disabled={isLoading}
+                disabled={loading}
               >
-                {isLoading ? "Retrying..." : "Try Again"}
+                {loading ? "Retrying..." : "Try Again"}
               </Button>
             )}
             <Button onClick={() => router.push("/")} variant="outline" className="border-white/20 text-white">
@@ -310,13 +107,10 @@ export default function GamePage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Connection Status */}
       <ConnectionStatus
-        isConnected={connectionStatus === "connected"}
-        connectionStatus={connectionStatus}
-        roomCode={room?.code}
+        isConnected={isConnected}
+        onReconnect={handleRetryJoin}
+        roomCode={game?.code}
       />
-
-      {/* Debug Panel */}
-      <DebugPanel />
 
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
@@ -326,27 +120,16 @@ export default function GamePage() {
           className="flex items-center justify-between mb-8"
         >
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={handleLeaveRoom} className="text-white hover:bg-white/10">
+            <Button variant="ghost" size="sm" onClick={handleLeaveRoom} className="hover:bg-white/10 text-white hover:text-white">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Leave
             </Button>
-            <h1 className="text-3xl font-bold text-white">{getGameTitle()}</h1>
+            <h1 className="text-3xl font-bold text-white">{game?.type}</h1>
           </div>
-
-          {room && room.gameState === "lobby" && (
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="bg-white/20 text-white">
-                Room: {room.code}
-              </Badge>
-              <Button variant="ghost" size="sm" onClick={copyRoomCode} className="text-white hover:bg-white/10">
-                <Copy className="w-4 h-4" />
-              </Button>
-            </div>
-          )}
         </motion.div>
 
         {/* Error Display */}
-        {error && room && (
+        {error && game && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -358,9 +141,9 @@ export default function GamePage() {
           </motion.div>
         )}
 
-        {room && (
+        {game && (
           <AnimatePresence mode="wait">
-            {room.gameState === "lobby" && (
+            {game.phase === "waiting" && (
               <motion.div
                 key="lobby"
                 initial={{ opacity: 0, x: -100 }}
@@ -370,9 +153,9 @@ export default function GamePage() {
               >
                 {/* Players List */}
                 <div className="lg:col-span-2">
-                  <PlayerList players={room.players} currentPlayerId={currentPlayer?.id} showConnectionStatus={true} />
+                  {/* <PlayerList players={room.players} currentPlayerId={currentPlayer?.id} showConnectionStatus={true} /> */}
 
-                  {currentPlayer && !currentPlayer.isHost && (
+                  {/* {game && !game.host && (
                     <div className="mt-4">
                       <Button
                         onClick={() => setReady(!currentPlayer.isReady)}
@@ -382,7 +165,7 @@ export default function GamePage() {
                         {currentPlayer.isReady ? "Not Ready" : "Ready Up"}
                       </Button>
                     </div>
-                  )}
+                  )} */}
                 </div>
 
                 {/* Game Controls */}
@@ -394,10 +177,10 @@ export default function GamePage() {
                     <CardContent className="space-y-4">
                       <div>
                         <label className="text-sm text-gray-300">Rounds</label>
-                        <div className="text-white font-medium">{room.maxRounds}</div>
+                        {/* <div className="text-white font-medium">{game.maxRounds}</div> */}
                       </div>
 
-                      {currentPlayer?.isHost && (
+                      {/* {currentPlayer?.isHost && (
                         <Button
                           onClick={startGame}
                           disabled={room.players.length < 3 || !room.players.every((p) => p.isReady)}
@@ -405,21 +188,21 @@ export default function GamePage() {
                         >
                           Start Game
                         </Button>
-                      )}
+                      )} */}
 
-                      {room.players.length < 3 && (
+                      {game.players.length < 3 && (
                         <p className="text-sm text-gray-400 text-center">Need at least 3 players to start</p>
                       )}
-                      {!room.players.every((p) => p.isReady) && room.players.length >= 3 && (
+                      {/* {!game.players.every((p) => p.isReady) && game.players.length >= 3 && (
                         <p className="text-sm text-gray-400 text-center">All players must be ready</p>
-                      )}
+                      )} */}
                     </CardContent>
                   </Card>
                 </div>
               </motion.div>
             )}
 
-            {room.gameState === "playing" && (
+            {game.phase === "playing" && (
               <motion.div
                 key="playing"
                 initial={{ opacity: 0, scale: 0.9 }}
@@ -431,17 +214,17 @@ export default function GamePage() {
                   <CardHeader>
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-white">
-                        Round {room.currentRound} of {room.maxRounds}
+                        {/* Round {game.currentRound} of {game.maxRounds} */}
                       </CardTitle>
                       <div className="flex items-center gap-2 text-white">
                         <Timer className="w-4 h-4" />
-                        <span className="font-mono">{room.timeLeft}s</span>
+                        {/* <span className="font-mono">{game.timeLeft}s</span> */}
                       </div>
                     </div>
-                    <Progress value={(room.timeLeft / 60) * 100} className="mt-2" />
+                    {/* <Progress value={(game.timeLeft / 60) * 100} className="mt-2" /> */}
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    {gameId === "imposter" && gameData && gameData.word ? (
+                    {/* {gameCode === "imposter" && gameData && gameData.word ? (
                       <>
                         <div className="text-center">
                           <div
@@ -470,7 +253,7 @@ export default function GamePage() {
                               value={playerAnswer}
                               onChange={(e) => setPlayerAnswer(e.target.value)}
                               className="bg-white/10 border-white/20 text-white placeholder:text-gray-400"
-                              onKeyPress={(e) => e.key === "Enter" && handleSubmitAnswer()}
+                              onKeyDown={(e) => e.key === "Enter" && handleSubmitAnswer()}
                               maxLength={50}
                             />
                             <Button onClick={handleSubmitAnswer} disabled={!playerAnswer.trim()}>
@@ -479,7 +262,7 @@ export default function GamePage() {
                           </div>
                         </div>
                       </>
-                    ) : gameId === "imposter" && room.gameState === "playing" ? (
+                    ) : gameCode === "imposter" && game.phase === "playing" ? (
                       // Loading state for imposter game
                       <div className="text-center py-8">
                         <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-white mx-auto mb-4"></div>
@@ -490,15 +273,15 @@ export default function GamePage() {
                       // Generic playing state for other games
                       <div className="text-center py-8">
                         <p className="text-white text-xl mb-4">Game in Progress</p>
-                        <p className="text-gray-300">Game type: {room.gameType}</p>
+                        <p className="text-gray-300">Game type: {game.type}</p>
                       </div>
-                    )}
+                    )} */}
                   </CardContent>
                 </Card>
               </motion.div>
             )}
 
-            {room.gameState === "voting" && (
+            {game.phase === "voting" && (
               <motion.div
                 key="voting"
                 initial={{ opacity: 0, y: 50 }}
@@ -514,7 +297,7 @@ export default function GamePage() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
+                    {/* <div className="space-y-3">
                       {room.players
                         .filter((p) => !p.isEliminated)
                         .map((player) => (
@@ -541,7 +324,7 @@ export default function GamePage() {
                             </Button>
                           </motion.div>
                         ))}
-                    </div>
+                    </div> */}
                   </CardContent>
                 </Card>
               </motion.div>
@@ -551,10 +334,10 @@ export default function GamePage() {
       </div>
 
       {/* Chat Component */}
-      {room && (
+      {game && (
         <Chat
-          messages={chatMessages}
-          onSendMessage={sendMessage}
+          messages={[]}
+          onSendMessage={() => ("")}
           isOpen={isChatOpen}
           onToggle={() => setIsChatOpen(!isChatOpen)}
         />
