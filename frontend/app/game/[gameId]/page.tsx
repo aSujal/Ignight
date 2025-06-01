@@ -12,13 +12,14 @@ import { useLocalStorage } from "@/hooks/useLocalStorage"
 import { Chat } from "@/components/chat"
 import { ConnectionStatus } from "@/components/connection-status"
 import { useGameSocket } from "@/hooks/useGameSocket"
+import { PlayerList } from "@/components/player-list"
 
 export default function GamePage() {
   const params = useParams()
   const router = useRouter()
   const gameCode = params.gameId as string
   // Get username from localStorage
-  const [storedUsername] = useLocalStorage("gamehub-username", "")
+  const [storedUsername] = useLocalStorage("ignight-username", "")
 
   const { game, error, loading, isConnected, joinRoom } = useGameSocket()
 
@@ -32,7 +33,6 @@ export default function GamePage() {
 
   const [playerAnswer, setPlayerAnswer] = useState("")
   const [isChatOpen, setIsChatOpen] = useState(false)
-  const [joinAttempted, setJoinAttempted] = useState(false)
 
   const handleLeaveRoom = async () => {
     // await leaveRoom()
@@ -52,30 +52,6 @@ export default function GamePage() {
     // await vote(playerId)
   }
 
-  const handleRetryJoin = () => {
-    if (gameCode && storedUsername) {
-      setJoinAttempted(false)
-    }
-  }
-
-
-
-  // Error state - no room and no username
-  if (!storedUsername && gameCode) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
-        <div className="text-white text-center max-w-md">
-          <UserPlus className="w-16 h-16 mx-auto mb-4 text-blue-400" />
-          <h2 className="text-2xl font-bold mb-4">Username Required</h2>
-          <p className="text-gray-300 mb-6">You need to set a username before joining a room.</p>
-          <Button onClick={() => router.push("/")} className="bg-gradient-to-r from-blue-500 to-cyan-600">
-            Go to Home Page
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
   // Error state - room not found or other errors
   if (error && !game) {
     return (
@@ -87,11 +63,11 @@ export default function GamePage() {
           <div className="space-y-2">
             {gameCode && storedUsername && (
               <Button
-                onClick={handleRetryJoin}
+                onClick={handleLeaveRoom}
                 className="bg-gradient-to-r from-blue-500 to-cyan-600 mr-2"
                 disabled={loading}
               >
-                {loading ? "Retrying..." : "Try Again"}
+                Leave Room
               </Button>
             )}
             <Button onClick={() => router.push("/")} variant="outline" className="border-white/20 text-white">
@@ -108,7 +84,7 @@ export default function GamePage() {
       {/* Connection Status */}
       <ConnectionStatus
         isConnected={isConnected}
-        onReconnect={handleRetryJoin}
+        onReconnect={handleLeaveRoom}
         roomCode={game?.code}
       />
 
@@ -153,7 +129,7 @@ export default function GamePage() {
               >
                 {/* Players List */}
                 <div className="lg:col-span-2">
-                  {/* <PlayerList players={room.players} currentPlayerId={currentPlayer?.id} showConnectionStatus={true} /> */}
+                  <PlayerList players={game.players} currentPlayerId={game.host} showConnectionStatus={true} />
 
                   {/* {game && !game.host && (
                     <div className="mt-4">
@@ -193,9 +169,9 @@ export default function GamePage() {
                       {game.players.length < 3 && (
                         <p className="text-sm text-gray-400 text-center">Need at least 3 players to start</p>
                       )}
-                      {/* {!game.players.every((p) => p.isReady) && game.players.length >= 3 && (
+                      {!game.players?.every((p) => p.isReady) && game.players.length >= 3 && (
                         <p className="text-sm text-gray-400 text-center">All players must be ready</p>
-                      )} */}
+                      )}
                     </CardContent>
                   </Card>
                 </div>

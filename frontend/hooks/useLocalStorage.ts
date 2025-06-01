@@ -1,6 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { v4 as uuidv4 } from 'uuid';
+
+const PLAYER_ID_KEY = 'ignight-player-id';
 
 export function useLocalStorage<T>(key: string, initialValue: T) {
   // State to store our value
@@ -31,4 +34,31 @@ export function useLocalStorage<T>(key: string, initialValue: T) {
   }
 
   return [storedValue, setValue] as const
+}
+
+export function usePersistentPlayerId(): [string, (id: string) => void] {
+  const [playerId, setPlayerId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const storedId = localStorage.getItem(PLAYER_ID_KEY);
+      if (storedId) {
+        return storedId;
+      }
+      const newId = uuidv4();
+      localStorage.setItem(PLAYER_ID_KEY, newId);
+      return newId;
+    }
+    return '';
+  });
+
+  useEffect(() => {
+    if (playerId && typeof window !== 'undefined') {
+      localStorage.setItem(PLAYER_ID_KEY, playerId);
+    }
+  }, [playerId]);
+
+  const updatePlayerId = (id: string) => {
+      setPlayerId(id);
+  }
+
+  return [playerId, updatePlayerId];
 }

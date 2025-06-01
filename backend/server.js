@@ -2,8 +2,6 @@ const socketIo = require("socket.io");
 const http = require("http");
 const express = require("express");
 const cors = require("cors");
-const { v4: uuidv4 } = require("uuid");
-
 const app = express();
 
 const PORT = 4000 || process.env.PORT;
@@ -30,71 +28,147 @@ function generateGameCode() {
 io.on("connection", (socket) => {
   console.log("User connected: ", socket.id);
   socket.emit("message", "Welcome to the server!");
-  socket.on("createRoom", ({ playerName, gameType }) => {
+
+  socket.on("createRoom", ({ gameType, playerName, playerId }) => {
     try {
-      const playerId = uuidv4();
-      const game = createRoom(playerId, playerName, gameType);
+      if (!playerName || !gameType) {
+        socket.emit("error", "Player name and game type are required.");
+        return;
+      }
+      const game = createNewRoom(playerId, gameType, playerName, socket.id);
       playerSockets.set(playerId, socket.id);
       socket.emit("roomCreated", {
         id: game.hostId,
         host: game.hostName,
         type: game.gameType,
-        players: game.players,
+        players: Array.from(game.players.values()),
         code: game.gameCode,
         phase: game.phase,
       });
       socket.join(game.gameCode);
-    } catch (error) {}
+      console.log(
+        `Player ${playerName} (ID: ${playerId}, Socket: ${socket.id}) created and joined room ${game.gameCode}`
+      );
+    } catch (error) {
+      console.error("Error creating room:", error);
+      socket.emit("error", "Failed to create room");
+    }
   });
 
-  socket.on("joinRoom", ({ playerName, roomCode }) => {
+  socket.on("joinRoom", ({ roomCode, playerName, playerId }) => {
     try {
-      const playerId = uuidv4();
-      const game = joinRoom(playerId, playerName, roomCode);
-      playerSockets.set(playerId, socket.id);
+      if (!playerName || !roomCode || !playerId) {
+        socket.emit(
+          "error",
+          "Player name, room code, and player ID are required."
+        );
+        return;
+      }
+      const game = games.get(roomCode);
+      if (!game) {
+        socket.emit("error", `Game room ${roomCode} not found.`);
+        return;
+      }
+      const player = game.players.get(playerId);
+      // Player is REJOINING / RECONNECTING
+      if (player) {
+        console.log(
+          `Player ${player.name} (ID: ${playerId}) is reconnecting to room ${roomCode} with new socket ${socket.id}`
+        );
+        player.isConnected = true;
+        player.socketId = socket.id;
+        player.name = playerName;
+      } else {
+        console.log(
+          `Player ${playerName} (ID: ${playerId}) is joining room ${roomCode} for the first time with socket ${socket.id}`
+        );
+        const newPlayer = {
+          id: playerId,
+          name: playerName,
+          socketId: socket.id,
+          isHost: false,
+          isReady: false,
+          votes: 0,
+          isEliminated: false,
+          isConnected: true,
+        };
+        game.players.set(playerId, newPlayer);
+      }
+
+      socket.join(game.gameCode);
+
       socket.emit("roomJoined", {
         id: game.hostId,
         host: game.hostName,
         type: game.gameType,
-        players: game.players,
+        players: Array.from(game.players.values()),
         code: game.gameCode,
         phase: game.phase,
       });
-      socket.join(game.gameCode);
-    } catch (error) {}
+
+      io.to(game.gameCode).emit("gameStateUpdate", {
+        ...game,
+        players: Array.from(game.players.values()),
+        code: game.gameCode,
+      });
+    } catch (error) {
+      console.error("Error joining room:", error);
+      socket.emit("error", "Failed to join room");
+    }
+  });
+
+  socket.on("disconnect", () => {
+    const playerId = playerSockets.get(socket.id);
+    if (playerId) {
+      playerSockets.delete(socket.id);
+      for (const [gameCode, game] of games.entries()) {
+        const player = game.players.get(playerId);
+        if (player && player.socketId === socket.id) {
+          console.log(
+            `Player ${player.name} (ID: ${playerId}) marked as disconnected from game ${gameCode}`
+          );
+          player.isConnected = false;
+          io.to(gameCode).emit("gameStateUpdate", {
+            ...game,
+            players: Array.from(game.players.values()),
+            code: gameCode,
+          });
+          break;
+        }
+      }
+    } else {
+      console.log(
+        `No player found for disconnected socket.id: ${socket.id}. User might not have joined a room.`
+      );
+    }
   });
 });
 
-function createRoom(hostId, gameType, hostName) {
+function createNewRoom(hostPersistentId, gameType, hostName, socketId) {
   const gameCode = generateGameCode();
+  const hostPlayer = {
+    id: hostPersistentId,
+    name: hostName,
+    socketId,
+    isHost: true,
+    isReady: true,
+    votes: 0,
+    isEliminated: false,
+    isConnected: true,
+  };
+  const playersMap = new Map();
+  playersMap.set(hostPersistentId, hostPlayer);
   const newGame = {
-    hostId,
+    hostId: hostPersistentId,
     hostName,
     gameCode,
     gameType,
-    players: new Map(),
+    players: playersMap,
     phase: "waiting",
     createdAt: new Date(),
   };
   games.set(gameCode, newGame);
   return newGame;
-}
-
-function joinRoom(playerId, roomCode, playerName) {
-  const game = games.get(roomCode);
-  if (!game) {
-    throw new Error("Game not found");
-  }
-  game.players.set(playerId, {
-    id: playerId,
-    name: playerName,
-    isHost: false,
-    isReady: false,
-    votes: 0,
-    isEliminated: false,
-    isConnected: true,
-  });
-  return game;
 }
 
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

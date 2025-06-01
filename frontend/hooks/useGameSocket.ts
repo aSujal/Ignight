@@ -4,8 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import type { GameState } from "@/lib/types";
 import socket from "@/lib/socket";
 import { useRouter } from "next/navigation";
+import { usePersistentPlayerId } from "./useLocalStorage";
 
 export function useGameSocket() {
+  const [persistentPlayerId] = usePersistentPlayerId();
   const [isConnected, setIsConnected] = useState(false);
   const [game, setGame] = useState<GameState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -23,10 +25,13 @@ export function useGameSocket() {
 
     socket.on("connect_error", (err) => {
       console.log(`connect_error due to ${err.message}`);
+      setError(`Connection error: ${err.message}`);
+      setIsConnected(false);
+      setLoading(false);
     });
 
     socket.on("message", (message: string) => {
-      console.log(message);
+      console.log("Socket Message:", message);
     });
 
     socket.on("connect", () => {
@@ -35,12 +40,16 @@ export function useGameSocket() {
       setError(null);
     });
 
-    socket.on("disconnect", () => {
+    socket.on("disconnect", (reason: string) => {
+      console.log("Socket disconnected:", reason);
       setIsConnected(false);
+      setError("Disconnected from server. Please check your connection.");
     });
 
     socket.on("roomCreated", (game: GameState) => {
       setGame(game);
+      setLoading(false);
+      setError(null);
       setLoading(false);
       router.push(`/game/${game.code}`);
     });
@@ -49,6 +58,38 @@ export function useGameSocket() {
       console.log("roomJoined", game);
       setGame(game);
       setLoading(false);
+      setError(null);
+    });
+
+    socket.on("gameStateUpdate", (updatedGame: GameState) => {
+      setGame(updatedGame);
+      setError(null);
+      setLoading(false);
+    });
+
+    socket.on("playerJoined", (playerData: GameState["players"][0]) => {
+      console.log("playerJoined", playerData);
+      setGame((prevGame) => {
+        if (!prevGame) return null;
+        if (prevGame.players.find((p) => p.id === playerData.id)) {
+          return prevGame;
+        }
+        return {
+          ...prevGame,
+          players: [...prevGame.players, playerData],
+        };
+      });
+    });
+
+    socket.on("playerLeft", (playerId: string) => {
+      console.log("playerLeft", playerId);
+      setGame((prevGame) => {
+        if (!prevGame) return null;
+        return {
+          ...prevGame,
+          players: prevGame.players.filter((p) => p.id !== playerId),
+        };
+      });
     });
 
     socket.on("error", (errorMessage: string) => {
@@ -63,14 +104,17 @@ export function useGameSocket() {
       socket.off("disconnect");
       socket.off("roomCreated");
       socket.off("roomJoined");
+      socket.off("gameStateUpdate");
+      socket.off("playerJoined");
+      socket.off("playerLeft");
       socket.off("error");
     };
-  }, []);
+  }, [router]);
 
-  const createRoom = useCallback((playerName: string, gameType: string) => {
+  const createRoom = useCallback((gameType: string, playerName: string) => {
     try {
       setLoading(true);
-      socket.emit("createRoom", { gameType, playerName });
+      socket.emit("createRoom", { gameType, playerName, playerId: persistentPlayerId });
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "An unknown error occurred";
@@ -78,12 +122,12 @@ export function useGameSocket() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [socket, persistentPlayerId]);
 
-  const joinRoom = useCallback((playerName: string, roomCode: string) => {
+  const joinRoom = useCallback((roomCode: string, playerName: string) => {
     try {
       setLoading(true);
-      socket.emit("joinRoom", { roomCode, playerName });
+      socket.emit("joinRoom", { roomCode, playerName, playerId: persistentPlayerId });
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "An unknown error occurred";
@@ -91,7 +135,7 @@ export function useGameSocket() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [socket, persistentPlayerId]);
 
   return { isConnected, game, error, loading, createRoom, joinRoom };
 }

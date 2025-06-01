@@ -17,13 +17,15 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { games } from "@/data/games";
 import { useGameSocket } from "@/hooks/useGameSocket";
 import { cn } from "@/lib/utils";
+import { useRouter } from "next/navigation";
 
 export default function HomePage() {
   // Use localStorage for persistent username
   const [playerName, setPlayerName] = useLocalStorage("ignight-username", "");
   const [roomCode, setRoomCode] = useState("");
   const [isCreating, setIsCreating] = useState(false);
-  const [isJoining, setIsJoining] = useState(false);
+
+  const router = useRouter();
 
   const { isConnected, game, joinRoom, error, createRoom } = useGameSocket();
 
@@ -42,16 +44,7 @@ export default function HomePage() {
   };
 
   const handleJoinRoom = async () => {
-    if (!playerName.trim() || !roomCode.trim()) return;
-
-    setIsJoining(true);
-    try {
-      await joinRoom(playerName.trim(), roomCode.trim().toUpperCase());
-    } catch (error) {
-      console.error("Failed to join room:", error);
-    } finally {
-      setIsJoining(false);
-    }
+    router.push(`/game/${roomCode}`);
   };
 
   const handlePlayerNameChange = (value: string) => {
@@ -88,11 +81,10 @@ export default function HomePage() {
           className="text-center mb-12"
         >
           <h1 className="text-6xl font-bold bg-gradient-to-r from-white via-purple-200 to-cyan-200 bg-clip-text text-transparent mb-4">
-            GameHub
+            Ignight
           </h1>
           <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-            Play amazing multiplayer games with friends online. Real-time
-            multiplayer with HTTP polling!
+            Play amazing multiplayer games with friends online. WebSocket real-time backend
           </p>
         </motion.div>
 
@@ -121,15 +113,6 @@ export default function HomePage() {
               <CardTitle className="text-white text-center">
                 Join the Fun
               </CardTitle>
-              {playerName && (
-                <p className="text-center text-sm text-gray-300">
-                  Welcome back,{" "}
-                  <span className="text-purple-300 font-medium">
-                    {playerName}
-                  </span>
-                  !
-                </p>
-              )}
             </CardHeader>
             <CardContent className="space-y-4">
               <Input
@@ -149,14 +132,10 @@ export default function HomePage() {
                 />
                 <Button
                   onClick={handleJoinRoom}
-                  disabled={!playerName.trim() || !roomCode.trim() || isJoining}
+                  disabled={!playerName.trim() || !roomCode.trim()}
                   className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
                 >
-                  {isJoining ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    "Join"
-                  )}
+                  Join
                 </Button>
               </div>
             </CardContent>
@@ -248,7 +227,7 @@ export default function HomePage() {
           <div className="flex flex-wrap justify-center gap-6 text-gray-300">
             <div className="flex items-center gap-2">
               <Zap className="w-5 h-5 text-yellow-400" />
-              <span>Real-time HTTP Polling</span>
+              <span>Real-time WebSocket</span>
             </div>
             <div className="flex items-center gap-2">
               <Music className="w-5 h-5 text-purple-400" />
@@ -259,7 +238,7 @@ export default function HomePage() {
               <span>Up to 12 Players</span>
             </div>
           </div>
-        </motion.div>
+        </motion.div> 
       </div>
     </div>
   );
