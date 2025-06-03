@@ -70,7 +70,7 @@ export default function GamePage() {
                 Leave Room
               </Button>
             )}
-            <Button onClick={() => router.push("/")} variant="outline" className="border-white/20 text-white">
+            <Button onClick={() => router.push("/")} variant="outline" className="border-white/20">
               Back to Home
             </Button>
           </div>
