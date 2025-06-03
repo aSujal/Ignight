@@ -1,4 +1,6 @@
 const Game = require("../models/Game");
+const WordImpostorGame = require("../models/ImposterGame");
+const config = require("../config/config");
 
 class GameService {
   constructor() {
@@ -11,9 +13,21 @@ class GameService {
       throw new Error("Player name and game type are required.");
     }
 
-    const game = new Game(hostId, hostName, gameType, socketId);
+    let game;
+
+    switch (gameType) {
+      case "word-impostor":
+        game = new WordImpostorGame(hostId, hostName, socketId);
+        break;
+      default:
+        game = new Game(hostId, hostName, gameType, socketId);
+        break;
+    }
+
     this.games.set(game.code, game);
     this.playerSockets.set(hostId, socketId);
+
+    console.log(`Game created: ${game.code} (Type: ${gameType})`);
 
     return game;
   }
@@ -33,6 +47,13 @@ class GameService {
     if (player) {
       game.reconnectPlayer(playerId, playerName, socketId);
     } else {
+      if (game.phase !== "waiting") {
+        throw new Error("Game already in progress");
+      }
+
+      if (game.players.size >= config.maxPlayersPerGame) {
+        throw new Error("Game is full");
+      }
       player = game.addPlayer(playerId, playerName, socketId, false);
     }
 
@@ -45,6 +66,15 @@ class GameService {
       const player = game.getPlayerBySocketId(socketId);
       if (player) {
         game.disconnectPlayer(player.id);
+
+        // const connectedPlayers = Array.from(game.players.values()).filter(
+        //   (p) => p.isConnected
+        // );
+        // if (connectedPlayers.length === 0) {
+        //   this.games.delete(gameCode);
+        //   console.log(`Game ${gameCode} deleted - no connected players`);
+        // }
+
         this.playerSockets.delete(player.id);
         return { game, player };
       }
@@ -60,6 +90,19 @@ class GameService {
     return Array.from(this.games.values()).map((game) => game.toJson());
   }
 
+  // Clean up old games (call this periodically)
+  cleanupOldGames(maxAgeMinutes = config.gameDurationMinutes) {
+    const now = new Date();
+    const cutoff = new Date(now.getTime() - maxAgeMinutes * 60 * 1000);
+
+    for (const [gameCode, game] of this.games.entries()) {
+      if (game.createdAt < cutoff) {
+        this.games.delete(gameCode);
+        console.log(`Cleaned up old game: ${gameCode}`);
+      }
+    }
+  }
+
   deleteGame(gameCode) {
     const game = this.games.get(gameCode);
     if (game) {
@@ -73,4 +116,6 @@ class GameService {
   }
 }
 
-module.exports = new GameService();
+const gameService = new GameService();
+
+module.exports = gameService;

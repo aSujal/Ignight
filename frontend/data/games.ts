@@ -2,7 +2,7 @@ import { Users, Zap, Music, HelpCircle, Eye, Volume2, CheckCircle, Loader2 } fro
 
 export const games = [
     {
-      id: "imposter",
+      id: "word-impostor",
       title: "Who's the Imposter?",
       description: "Find the imposter among your friends in this word-based deduction game",
       icon: Eye,

@@ -2,26 +2,26 @@ const socketIo = require("socket.io");
 const {
   handleCreateRoom,
   handleJoinRoom,
+  handleGameAction,
   handleDisconnect,
 } = require("./gameHandlers");
+const config = require("../config/config");
 
 function initializeSocket(server) {
   const io = socketIo(server, {
     cors: {
-      origin: process.env.CLIENT_URL || "http://localhost:3000",
+      origin: config.clientUrl || "http://localhost:3000",
       methods: ["GET", "POST"],
       credentials: true,
     },
   });
-  io.on("connection", (socket) => {
-    console.log("Uses connected: ", socket.id);
 
-    socket.on("createRoom", ({ gameType, playerName, playerId }) =>
-      handleCreateRoom(socket, io, { gameType, playerName, playerId })
-    );
-    socket.on("joinRoom", ({ roomCode, playerName, playerId }) =>
-      handleJoinRoom(socket, io, { roomCode, playerName, playerId })
-    );
+  io.on("connection", (socket) => {
+    console.log("User connected: ", socket.id);
+
+    socket.on("createRoom", (data) => handleCreateRoom(socket, io, data));
+    socket.on("joinRoom", (data) => handleJoinRoom(socket, io, data));
+    socket.on("gameAction", (data) => handleGameAction(socket, io, data));
     socket.on("disconnect", () => handleDisconnect(socket, io));
   });
 

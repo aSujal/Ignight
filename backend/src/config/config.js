@@ -5,6 +5,7 @@ const config = {
   
   // Game-specific configs
   maxPlayersPerGame: parseInt(process.env.MAX_PLAYERS_PER_GAME) || 10,
+  gameDurationMinutes: parseInt(process.env.GAME_DURATION_MINUTES) || 60,
   gameCodeLength: 6,
   
   // Socket.IO configs

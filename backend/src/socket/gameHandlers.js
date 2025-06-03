@@ -1,4 +1,5 @@
 const gameService = require("../services/GameService");
+const { GAME_TYPES } = require("../config/enums");
 
 function handleCreateRoom(socket, io, { gameType, playerName, playerId }) {
   try {
@@ -9,61 +10,67 @@ function handleCreateRoom(socket, io, { gameType, playerName, playerId }) {
       socket.id
     );
     socket.join(game.code);
-    socket.emit("roomCreated", game.toJSON());
-
-    console.log(
-      `Player ${playerName} (ID: ${playerId}, Socket: ${socket.id}) created and joined room ${game.code}`
-    );
+    socket.emit("roomCreated", game.getClientState(playerId));
+    console.log(`Player ${playerName} created room ${game.code}`);
   } catch (error) {
-    console.error("Error creating room:", error);
     socket.emit("error", error.message);
   }
 }
 
 function handleJoinRoom(socket, io, { roomCode, playerName, playerId }) {
   try {
-    const { game, player } = gameService.joinGame(
+    const { game } = gameService.joinGame(
       roomCode,
       playerId,
       playerName,
       socket.id
     );
-
     socket.join(game.code);
-    socket.emit("roomJoined", game.toJSON());
-
-    io.to(game.code).emit("gameStateUpdate", game.toJSON());
-
-    console.log(
-      `Player ${playerName} (ID: ${playerId}) ${
-        player.isConnected ? "reconnected to" : "joined"
-      } room ${roomCode}`
-    );
+    const gameReturn = game.getClientState(playerId);
+    socket.emit("roomJoined", gameReturn);
+    io.to(game.code).emit("gameStateUpdate", gameReturn);
+    console.log(`Player ${playerName} joined room ${roomCode}`);
   } catch (error) {
-    console.error("Error joining room:", error);
+    socket.emit("error", error.message);
+  }
+}
+
+function handleGameAction(socket, io, { roomCode, playerId, action, data }) {
+  try {
+    const game = gameService.getGame(roomCode);
+    if (!game) throw new Error("Game not found");
+    console.log(playerId);
+    const result = game.handleAction(playerId, action, data);
+
+    if (result.broadcast) {
+      io.to(roomCode).emit(result.event, result.data);
+    } else if (result.emit) {
+      socket.emit(result.event, result.data);
+    }
+
+    for (const [playerId, player] of game.players.entries()) {
+      const gameReturn = game.getClientState(playerId);
+      io.to(player.socketId).emit("gameStateUpdate", gameReturn);
+    }
+  } catch (error) {
     socket.emit("error", error.message);
   }
 }
 
 function handleDisconnect(socket, io) {
   const result = gameService.disconnectPlayer(socket.id);
-
   if (result) {
-    const { game, player } = result;
-    console.log(
-      `Player ${player.name} (ID: ${player.id}) marked as disconnected from game ${game.code}`
-    );
-
-    io.to(game.code).emit("gameStateUpdate", game.toJSON());
-  } else {
-    console.log(
-      `No player found for disconnected socket.id: ${socket.id}. User might not have joined a room.`
-    );
+    const { game } = result;
+    for (const [playerId, player] of game.players.entries()) {
+      const gameReturn = game.getClientState(playerId);
+      io.to(player.socketId).emit("gameStateUpdate", gameReturn);
+    }
   }
 }
 
 module.exports = {
   handleCreateRoom,
   handleJoinRoom,
+  handleGameAction,
   handleDisconnect,
 };

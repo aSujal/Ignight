@@ -1,78 +1,77 @@
+const { GAME_PHASES } = require('../config/enums');
+
+class Player {
+  constructor(id, name, socketId, isHost = false) {
+    this.id = id;
+    this.name = name;
+    this.socketId = socketId;
+    this.isHost = isHost;
+    this.isConnected = true;
+    this.isReady = false;
+  }
+}
+
 class Game {
   constructor(hostId, hostName, gameType, socketId) {
-    this.hostId = hostId;
-    this.hostName = hostName;
+    this.code = this.generateCode();
     this.type = gameType;
-    this.code = this.generateGameCode();
-    this.socketId = socketId;
+    this.phase = GAME_PHASES.WAITING;
     this.players = new Map();
-    this.phase = "waiting";
+    this.host = hostId;
     this.createdAt = new Date();
-
+    
     this.addPlayer(hostId, hostName, socketId, true);
   }
 
-
-  generateGameCode() {
+  generateCode() {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
   }
 
-  addPlayer(playerId, playerName, socketId, isHost = false) {
-    const player = {
-      id: playerId,
-      name: playerName,
-      socketId,
-      isHost,
-      isReady: false,
-      votes: 0,
-      isEliminated: false,
-      isConnected: true,
-    };
-
-    this.players.set(playerId, player);
+  addPlayer(id, name, socketId, isHost = false) {
+    const player = new Player(id, name, socketId, isHost);
+    this.players.set(id, player);
     return player;
   }
 
-  reconnectPlayer(playerId, playerName, socketId) {
-    const player = this.players.get(playerId);
-    if (player) {
-      player.name = playerName;
-      player.socketId = socketId;
-      player.isConnected = true;
-      return player;
-    }
-    return null;
+  handleAction(playerId, action, data) {
+    // Override in subclasses
+    throw new Error(`Action ${action} not implemented`);
+  }
+
+  getClientState(playerId = null) {
+    return {
+      code: this.code,
+      type: this.type,
+      phase: this.phase,
+      host: this.host,
+      players: Array.from(this.players.values()).map(p => ({
+        id: p.id,
+        name: p.name,
+        isHost: p.isHost,
+        isConnected: p.isConnected,
+        isReady: p.isReady
+      }))
+    };
   }
 
   disconnectPlayer(playerId) {
     const player = this.players.get(playerId);
     if (player) {
       player.isConnected = false;
-      return player;
     }
-    return null;
+  }
+
+  reconnectPlayer(playerId, name, socketId) {
+    const player = this.players.get(playerId);
+    if (player) {
+      player.isConnected = true;
+      player.socketId = socketId;
+      player.name = name;
+    }
   }
 
   getPlayerBySocketId(socketId) {
-    for (const player of this.players.values()) {
-      if (player.socketId === socketId) {
-        return player;
-      }
-    }
-    return null;
-  }
-
-  toJSON() {
-    return {
-      hostId: this.hostId,
-      hostName: this.hostName,
-      type: this.type,
-      code: this.code,
-      socketId: this.socketId,
-      players: Array.from(this.players.values()),
-      phase: this.phase,
-      createdAt: this.createdAt,
-    };
+    return Array.from(this.players.values()).find(p => p.socketId === socketId);
   }
 }
 

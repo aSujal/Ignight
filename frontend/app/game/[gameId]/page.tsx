@@ -1,56 +1,52 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
-import { Copy, Vote, Timer, ArrowLeft, AlertCircle, UserPlus } from "lucide-react"
-import { useParams, useRouter } from "next/navigation"
-import { useLocalStorage } from "@/hooks/useLocalStorage"
-import { Chat } from "@/components/chat"
-import { ConnectionStatus } from "@/components/connection-status"
-import { useGameSocket } from "@/hooks/useGameSocket"
-import { PlayerList } from "@/components/player-list"
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Copy,
+  Vote,
+  Timer,
+  ArrowLeft,
+  AlertCircle,
+  UserPlus,
+} from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { Chat } from "@/components/chat";
+import { ConnectionStatus } from "@/components/connection-status";
+import { useGameSocket } from "@/hooks/useGameSocket";
+import { PlayerList } from "@/components/player-list";
+import { WordImpostorGame } from "@/components/game/WordImpostorGame";
+import { usePersistentPlayerId } from "@/hooks/useLocalStorage";
 
 export default function GamePage() {
-  const params = useParams()
-  const router = useRouter()
-  const gameCode = params.gameId as string
+  const params = useParams();
+  const router = useRouter();
+  const gameCode = params.gameId as string;
   // Get username from localStorage
-  const [storedUsername] = useLocalStorage("ignight-username", "")
+  const [storedUsername] = useLocalStorage("ignight-username", "");
 
-  const { game, error, loading, isConnected, joinRoom } = useGameSocket()
+  const [persistentPlayerId] = usePersistentPlayerId();
+
+  const { game, error, loading, isConnected, joinRoom, startGame } =
+    useGameSocket();
 
   useEffect(() => {
     if (gameCode && storedUsername) {
-      joinRoom(gameCode, storedUsername)
+      joinRoom(gameCode, storedUsername);
     }
-  }, [gameCode, storedUsername, joinRoom])
+  }, [gameCode, storedUsername, joinRoom]);
 
-  console.log("game",game)
-
-  const [playerAnswer, setPlayerAnswer] = useState("")
-  const [isChatOpen, setIsChatOpen] = useState(false)
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const handleLeaveRoom = async () => {
     // await leaveRoom()
-    router.push("/")
-  }
-
-  const handleSubmitAnswer = async () => {
-    if (!playerAnswer.trim()) return
-
-    // await submitAnswer(playerAnswer.trim())
-    setPlayerAnswer("")
-  }
-
-  const handleVote = async (playerId: string) => {
-    const targetPlayer = game?.players.find((p) => p.id === playerId)
-
-    // await vote(playerId)
-  }
+    router.push("/");
+  };
 
   // Error state - room not found or other errors
   if (error && !game) {
@@ -70,15 +66,23 @@ export default function GamePage() {
                 Leave Room
               </Button>
             )}
-            <Button onClick={() => router.push("/")} variant="outline" className="border-white/20">
+            <Button
+              onClick={() => router.push("/")}
+              variant="outline"
+              className="border-white/20"
+            >
               Back to Home
             </Button>
           </div>
         </div>
       </div>
-    )
+    );
   }
 
+  console.log("game", game);
+
+  const currentPlayer = game?.players.find((p) => p.id === persistentPlayerId);
+  const isHost = currentPlayer?.isHost;
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Connection Status */}
@@ -96,14 +100,18 @@ export default function GamePage() {
           className="flex items-center justify-between mb-8"
         >
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={handleLeaveRoom} className="hover:bg-white/10 text-white hover:text-white">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLeaveRoom}
+              className="hover:bg-white/10 text-white hover:text-white"
+            >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Leave
             </Button>
             <h1 className="text-3xl font-bold text-white">{game?.type}</h1>
           </div>
         </motion.div>
-
         {/* Error Display */}
         {error && game && (
           <motion.div
@@ -116,7 +124,6 @@ export default function GamePage() {
             </div>
           </motion.div>
         )}
-
         {game && (
           <AnimatePresence mode="wait">
             {game.phase === "waiting" && (
@@ -129,26 +136,20 @@ export default function GamePage() {
               >
                 {/* Players List */}
                 <div className="lg:col-span-2">
-                  <PlayerList players={game.players} currentPlayerId={game.host} showConnectionStatus={true} />
-
-                  {/* {game && !game.host && (
-                    <div className="mt-4">
-                      <Button
-                        onClick={() => setReady(!currentPlayer.isReady)}
-                        variant={currentPlayer.isReady ? "destructive" : "default"}
-                        className="w-full"
-                      >
-                        {currentPlayer.isReady ? "Not Ready" : "Ready Up"}
-                      </Button>
-                    </div>
-                  )} */}
+                  <PlayerList
+                    players={game.players}
+                    currentPlayerId={game.host}
+                    showConnectionStatus={true}
+                  />
                 </div>
 
                 {/* Game Controls */}
                 <div>
                   <Card className="bg-white/10 backdrop-blur-lg border-white/20">
                     <CardHeader>
-                      <CardTitle className="text-white">Game Settings</CardTitle>
+                      <CardTitle className="text-white">
+                        Game Settings
+                      </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-4">
                       <div>
@@ -156,26 +157,38 @@ export default function GamePage() {
                         {/* <div className="text-white font-medium">{game.maxRounds}</div> */}
                       </div>
 
-                      {/* {currentPlayer?.isHost && (
+                      {isHost && (
                         <Button
                           onClick={startGame}
-                          disabled={room.players.length < 3 || !room.players.every((p) => p.isReady)}
+                          disabled={
+                            game.players.length < 3 
+                            // !game.players.every((p) => p.isReady)
+                          }
                           className="w-full bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
                         >
                           Start Game
                         </Button>
-                      )} */}
+                      )}
 
                       {game.players.length < 3 && (
-                        <p className="text-sm text-gray-400 text-center">Need at least 3 players to start</p>
+                        <p className="text-sm text-gray-400 text-center">
+                          Need at least 3 players to start
+                        </p>
                       )}
-                      {!game.players?.every((p) => p.isReady) && game.players.length >= 3 && (
-                        <p className="text-sm text-gray-400 text-center">All players must be ready</p>
-                      )}
+                      {!game.players?.every((p) => p.isReady) &&
+                        game.players.length >= 3 && (
+                          <p className="text-sm text-gray-400 text-center">
+                            All players must be ready
+                          </p>
+                        )}
                     </CardContent>
                   </Card>
                 </div>
               </motion.div>
+            )}
+
+            {game && game.phase !== "waiting" && (
+              <WordImpostorGame game={game} />
             )}
 
             {game.phase === "playing" && (
@@ -313,11 +326,11 @@ export default function GamePage() {
       {game && (
         <Chat
           messages={[]}
-          onSendMessage={() => ("")}
+          onSendMessage={() => ""}
           isOpen={isChatOpen}
           onToggle={() => setIsChatOpen(!isChatOpen)}
         />
       )}
     </div>
-  )
+  );
 }

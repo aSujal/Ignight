@@ -42,6 +42,7 @@ export function useGameSocket() {
 
     socket.on("disconnect", (reason: string) => {
       console.log("Socket disconnected:", reason);
+      setGame(null);
       setIsConnected(false);
       setError("Disconnected from server. Please check your connection.");
     });
@@ -62,35 +63,12 @@ export function useGameSocket() {
     });
 
     socket.on("gameStateUpdate", (updatedGame: GameState) => {
+      console.log("gameStateUpdate", updatedGame);
       setGame(updatedGame);
       setError(null);
       setLoading(false);
     });
 
-    socket.on("playerJoined", (playerData: GameState["players"][0]) => {
-      console.log("playerJoined", playerData);
-      setGame((prevGame) => {
-        if (!prevGame) return null;
-        if (prevGame.players.find((p) => p.id === playerData.id)) {
-          return prevGame;
-        }
-        return {
-          ...prevGame,
-          players: [...prevGame.players, playerData],
-        };
-      });
-    });
-
-    socket.on("playerLeft", (playerId: string) => {
-      console.log("playerLeft", playerId);
-      setGame((prevGame) => {
-        if (!prevGame) return null;
-        return {
-          ...prevGame,
-          players: prevGame.players.filter((p) => p.id !== playerId),
-        };
-      });
-    });
 
     socket.on("error", (errorMessage: string) => {
       setError(errorMessage);
@@ -105,37 +83,112 @@ export function useGameSocket() {
       socket.off("roomCreated");
       socket.off("roomJoined");
       socket.off("gameStateUpdate");
-      socket.off("playerJoined");
-      socket.off("playerLeft");
       socket.off("error");
     };
   }, [router]);
 
-  const createRoom = useCallback((gameType: string, playerName: string) => {
-    try {
-      setLoading(true);
-      socket.emit("createRoom", { gameType, playerName, playerId: persistentPlayerId });
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "An unknown error occurred";
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  }, [socket, persistentPlayerId]);
+  const createRoom = useCallback(
+    (gameType: string, playerName: string) => {
+      try {
+        setLoading(true);
+        socket.emit("createRoom", {
+          gameType,
+          playerName,
+          playerId: persistentPlayerId,
+        });
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "An unknown error occurred";
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [socket, persistentPlayerId]
+  );
 
-  const joinRoom = useCallback((roomCode: string, playerName: string) => {
-    try {
-      setLoading(true);
-      socket.emit("joinRoom", { roomCode, playerName, playerId: persistentPlayerId });
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "An unknown error occurred";
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  }, [socket, persistentPlayerId]);
+  const joinRoom = useCallback(
+    (roomCode: string, playerName: string) => {
+      try {
+        setLoading(true);
+        socket.emit("joinRoom", {
+          roomCode,
+          playerName,
+          playerId: persistentPlayerId,
+        });
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error ? error.message : "An unknown error occurred";
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [socket, persistentPlayerId]
+  );
 
-  return { isConnected, game, error, loading, createRoom, joinRoom };
+  const startGame = useCallback(() => {
+    socket.emit("gameAction", {
+      roomCode: game?.code,
+      playerId: persistentPlayerId,
+      action: "startGame",
+    });
+  }, [socket, game?.code, persistentPlayerId]);
+
+  const startRound = useCallback(() => {
+    console.log("game", game)
+    socket.emit("gameAction", {
+      roomCode: game?.code,
+      playerId: persistentPlayerId,
+      action: "startRound",
+    });
+  }, [socket, game?.code, persistentPlayerId]);
+
+  const submitClue = useCallback(
+    (clue: string) => {
+      socket.emit("gameAction", {
+        roomCode: game?.code,
+        playerId: persistentPlayerId,
+        action: "submitClue",
+        data: { clue },
+      });
+    },
+    [socket, game?.code, persistentPlayerId]
+  );
+
+  const submitVote = useCallback(
+    (votedForPlayerId: string) => {
+      socket.emit("gameAction", {
+        roomCode: game?.code,
+        playerId: persistentPlayerId,
+        action: "submitVote",
+        data: { votedForPlayerId },
+      });
+    },
+    [socket, game?.code, persistentPlayerId]
+  );
+
+  const resetGame = useCallback(() => {
+    console.log("game", game)
+    socket.emit("gameAction", {
+      roomCode: game?.code,
+      playerId: persistentPlayerId,
+      action: "resetGame",
+    });
+  }, [socket, game?.code, persistentPlayerId]);
+  console.log("gameo", game)
+
+  return {
+    isConnected,
+    game,
+    error,
+    loading,
+    createRoom,
+    joinRoom,
+    startGame,
+    startRound,
+    submitClue,
+    submitVote,
+    resetGame,
+  };
 }
