@@ -4,11 +4,11 @@ const GAME_TYPES = {
 };
 
 const GAME_PHASES = {
-  WAITING: 'waiting',
-  WORD_REVEAL: 'word-reveal',
-  CLUE_GIVING: 'clue-giving',
-  VOTING: 'voting',
-  RESULTS: 'results'
+  WAITING: 'waiting',        // Players gather, game setup
+  WORD_SHOW: 'word-show',      // Word/Imposter role is shown briefly
+  DISCUSSION: 'discussion',    // Players give clues and discuss
+  VOTING: 'voting',          // Players vote for the imposter
+  RESULTS: 'results'         // Results are shown, game ends or new round
 };
 
 module.exports = {

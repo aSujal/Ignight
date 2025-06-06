@@ -7,7 +7,8 @@ class Player {
     this.socketId = socketId;
     this.isHost = isHost;
     this.isConnected = true;
-    this.isReady = false;
+    this.isReady = false; // Assuming isReady was part of previous game logic, keep it
+    this.avatarUrl = `https://api.dicebear.com/8.x/micah/svg?seed=${encodeURIComponent(id)}`;
   }
 }
 
@@ -49,7 +50,8 @@ class Game {
         name: p.name,
         isHost: p.isHost,
         isConnected: p.isConnected,
-        isReady: p.isReady
+        isReady: p.isReady, // Assuming isReady was part of previous game logic
+        avatarUrl: p.avatarUrl
       }))
     };
   }

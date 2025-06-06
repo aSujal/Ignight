@@ -8,7 +8,7 @@ class GameService {
     this.playerSockets = new Map();
   }
 
-  createGame(hostId, hostName, gameType, socketId) {
+  createGame(hostId, hostName, gameType, socketId, numBots = 0) {
     if (!hostName || !gameType) {
       throw new Error("Player name and game type are required.");
     }
@@ -17,9 +17,10 @@ class GameService {
 
     switch (gameType) {
       case "word-impostor":
-        game = new WordImpostorGame(hostId, hostName, socketId);
+        game = new WordImpostorGame(hostId, hostName, socketId, numBots);
         break;
       default:
+        // Assuming other game types might not support bots or handle them differently
         game = new Game(hostId, hostName, gameType, socketId);
         break;
     }

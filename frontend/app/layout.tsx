@@ -1,10 +1,16 @@
 import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
 import './globals.css'
 
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap', // Ensure font loads properly
+})
+
 export const metadata: Metadata = {
-  title: 'Ignight',
-  description: 'Created with Ignight',
-  generator: 'Ignight',
+  title: 'Word Impostor Game', // More specific title
+  description: 'A social deduction game of words and wits.', // More engaging description
+  // Consider adding icons/favicons here later
 }
 
 export default function RootLayout({
@@ -13,8 +19,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" className="dark bg-background text-foreground"> {/* Default to dark theme, apply base bg/text colors */}
+      <body className={inter.className}>{children}</body>
     </html>
   )
 }

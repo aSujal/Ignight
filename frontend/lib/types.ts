@@ -9,7 +9,7 @@ export interface Player {
   votes: number;
   isEliminated: boolean;
   isConnected: boolean;
-  avatar?: string;
+  avatarUrl: string; // Changed from avatar?: string
 }
 
 export interface GameState {
