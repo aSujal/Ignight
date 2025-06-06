@@ -18,6 +18,10 @@ const config = {
       credentials: true,
     },
   },
+  availableAvatarStyles: [
+    'micah', 'adventurer', 'fun-emoji', 'identicon', 'pixel-art',
+    'initials', 'lorelei', 'notionists', 'shapes', 'thumbs'
+  ], // Added list of styles
 };
 
 

@@ -1,33 +1,52 @@
 import { useState } from "react";
-import Image from "next/image"; // Import Next.js Image component
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { useGameSocket } from "@/hooks/useGameSocket";
 import { usePersistentPlayerId } from "@/hooks/useLocalStorage";
-import { GAME_PHASES } from "@/lib/enum"; // This should now have the new phase names if enums.js was updated on frontend
-import { GameState, Player } from "@/lib/types"; // Ensure Player type is imported if needed for type guards
+import { GAME_PHASES } from "@/lib/enum";
+import { GameState, Player } from "@/lib/types";
+import { PlayerList } from "@/components/player-list";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-export function WordImpostorGame({ game }: { game: GameState }) {
+interface WordImpostorGameProps {
+  game: GameState;
+  submitClue: (clue: string) => void;
+  submitVote: (playerId: string) => void;
+  resetGame: () => void;
+  startGame: () => void;
+  hostSkipWordShow: () => void;
+  hostEndDiscussion: () => void;
+  hostEndVoting: () => void;
+  readyUp: () => void;
+  addBotToGame: () => void;
+  updateAvatarStyle: (style: string) => void;
+}
+
+export function WordImpostorGame({
+  game,
+  submitClue,
+  submitVote,
+  resetGame,
+  startGame,
+  hostSkipWordShow,
+  hostEndDiscussion,
+  hostEndVoting,
+  readyUp,
+  addBotToGame,
+  updateAvatarStyle,
+}: WordImpostorGameProps) {
   const [clue, setClue] = useState("");
-  // Destructure all necessary functions from useGameSocket, including new ones for phase refactor
-  const {
-    submitClue,
-    submitVote,
-    resetGame,
-    startGame, // Assuming startGame is still used to initiate the game by host from WAITING
-    hostSkipWordShow,
-    hostEndDiscussion,
-    hostEndVoting,
-    readyUp
-  } = useGameSocket();
 
-  console.log("Current Game State:", game); // More descriptive log
+  console.log("WordImpostorGame received game state:", game);
   const [persistentPlayerId] = usePersistentPlayerId();
 
-  const currentPlayer = game?.players.find((p) => p.id === persistentPlayerId);
+  const currentPlayer = game?.players.find((p: Player) => p.id === persistentPlayerId);
   const isHost = currentPlayer?.isHost;
+  // Use the new top-level game.isImpostor for the current player after roles are assigned
+  const isCurrentPlayerImpostor = game.isImpostor ?? false;
+
 
   const handleSubmitClue = () => {
     if (clue.trim()) {
@@ -36,83 +55,165 @@ export function WordImpostorGame({ game }: { game: GameState }) {
     }
   };
 
-  // Helper to get current player object
-  // Note: currentPlayer was already defined above, removing duplicate.
-  // const currentPlayer = game?.players.find((p: Player) => p.id === persistentPlayerId);
-
-
-  // WAITING Phase UI
   if (game?.phase === GAME_PHASES.WAITING) {
+    const minPlayers = game.type === 'word-impostor' ? 3 : 2;
+    const canStartGame = game.players.length >= minPlayers;
+    const isMaxPlayers = game.players.length >= game.maxPlayers;
+
     return (
-      <Card className="w-full max-w-md mx-auto bg-card/90 backdrop-blur-lg border-border shadow-2xl rounded-xl">
-        <CardHeader className="text-center pt-8 pb-4">
-          <CardTitle className="text-4xl font-extrabold text-primary-foreground tracking-tight">
-            Game Lobby
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-6 space-y-6">
-          <div className="p-5 bg-muted/70 rounded-lg text-center shadow-inner">
-            <p className="text-base text-muted-foreground mb-1">Share this code to invite players:</p>
-            <p className="text-5xl font-mono tracking-widest text-accent-foreground py-3 bg-background rounded-lg shadow-md select-all">
-              {game.code}
-            </p>
-          </div>
-          {/* PlayerList component would ideally be rendered by the parent page structure */}
-          {/* For now, we assume it's handled elsewhere or not part of this specific component's direct render in WAITING phase */}
-          {isHost && ( // isHost is defined from currentPlayer above
-            <Button
-              onClick={() => startGame()}
-              className="w-full bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:from-primary/80 hover:to-primary text-lg py-7 rounded-lg shadow-xl transition-all hover:scale-105 hover:shadow-2xl focus:ring-4 focus:ring-primary/50"
-              disabled={game.players.length < (game.type === 'word-impostor' ? 3 : 2)} // Example: min 3 players for word-impostor
-            >
-              {game.players.length < (game.type === 'word-impostor' ? 3 : 2)
-                ? `Need ${ (game.type === 'word-impostor' ? 3 : 2) - game.players.length} more player(s)`
-                : "🚀 Launch Game!"}
-            </Button>
+      <div className="w-full max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+        <div className="md:col-span-2">
+          <PlayerList
+            players={game.players}
+            currentPlayerId={persistentPlayerId}
+            title="Players in Lobby"
+          />
+        </div>
+        <div className="md:col-span-1 space-y-6">
+          <Card className="bg-card/90 backdrop-blur-lg border-border shadow-2xl rounded-xl">
+            <CardHeader className="text-center pt-6 pb-4">
+              <CardTitle className="text-3xl font-extrabold text-primary-foreground tracking-tight">
+                Game Lobby
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="p-4 bg-muted/70 rounded-lg text-center shadow-inner">
+                <p className="text-sm text-muted-foreground mb-1">Game Code (Share with friends):</p>
+                <p className="text-4xl font-mono tracking-wider text-accent-foreground py-2 bg-background rounded-md shadow select-all">
+                  {game.code}
+                </p>
+              </div>
+
+              {isHost && (
+                <>
+                  <Button
+                    onClick={startGame}
+                    className="w-full bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:from-primary/80 hover:to-primary text-lg py-6 rounded-lg shadow-xl transition-all hover:scale-105 focus:ring-4 focus:ring-primary/50 disabled:opacity-70"
+                    disabled={!canStartGame}
+                  >
+                    {canStartGame
+                      ? "🚀 Launch Game!"
+                      : `Need ${minPlayers - game.players.length} more player(s)`}
+                  </Button>
+                  <Button
+                    onClick={addBotToGame}
+                    variant="outline"
+                    className="w-full border-accent text-accent-foreground hover:bg-accent/20 text-md py-5 rounded-lg shadow-md transition-all hover:scale-105 focus:ring-4 focus:ring-accent/50 disabled:opacity-60"
+                    disabled={isMaxPlayers}
+                  >
+                    {isMaxPlayers ? "Max Players Reached" : "🤖 Add Bot Player"}
+                  </Button>
+                </>
+              )}
+              {!isHost && (
+                <div className="text-center p-4 bg-secondary/70 rounded-lg shadow">
+                  <p className="text-secondary-foreground font-medium">
+                    Waiting for the host to start the game...
+                  </p>
+                  {game.players.length < minPlayers && (
+                     <p className="text-xs text-muted-foreground mt-1">({minPlayers - game.players.length} more player(s) needed)</p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {currentPlayer && (
+            <Card className="bg-card/90 backdrop-blur-lg border-border shadow-2xl rounded-xl">
+              <CardHeader className="text-center pt-5 pb-3">
+                <CardTitle className="text-xl font-semibold text-primary-foreground">
+                  Customize Your Avatar
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 space-y-3 items-center flex flex-col">
+                <Image
+                  src={currentPlayer.avatarUrl}
+                  alt={`${currentPlayer.name}'s current avatar`}
+                  width={80}
+                  height={80}
+                  className="rounded-full border-3 border-primary shadow-lg mb-3"
+                />
+                {game.availableAvatarStyles && game.availableAvatarStyles.length > 0 && (
+                  <div className="w-full">
+                    <label htmlFor="avatarStyleSelect" className="text-sm text-muted-foreground mb-1 block text-center">Select Style:</label>
+                    <Select
+                      value={currentPlayer.avatarStyle || game.availableAvatarStyles[0]}
+                      onValueChange={(newStyle) => updateAvatarStyle(newStyle)}
+                    >
+                      <SelectTrigger className="w-full p-3 bg-input border-border rounded-md text-foreground focus:ring-2 focus:ring-primary shadow-sm text-base h-auto">
+                        <SelectValue placeholder="Select avatar style" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-popover text-popover-foreground">
+                        {game.availableAvatarStyles.map(style => (
+                          <SelectItem key={style} value={style} className="capitalize cursor-pointer hover:bg-accent">
+                            {style.replace(/[-_]/g, ' ')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           )}
-          {!isHost && (
-            <p className="text-center text-muted-foreground pt-4">Waiting for the host to start the game...</p>
-          )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 
   // WORD_SHOW Phase UI
-  if (game?.phase === GAME_PHASES.WORD_SHOW && game?.gameData) {
+  if (game?.phase === GAME_PHASES.WORD_SHOW && game?.gameData) { // gameData is still used for word/hint
+    const totalHumanPlayers = game.players.filter(p => !p.isBot).length;
+    const isPlayerReady = game.readyPlayers?.includes(persistentPlayerId ?? '');
+
     return (
       <Card className="w-full max-w-lg mx-auto bg-card/90 backdrop-blur-lg border-border shadow-2xl rounded-xl text-center">
-        <CardHeader className="pt-8 pb-2">
+        <CardHeader className="pt-8 pb-4">
           <CardTitle className="text-2xl font-semibold text-muted-foreground">Your Identity & Word</CardTitle>
+          <div className="mt-2 text-base text-accent-foreground">
+            <span>{game.readyPlayers?.length || 0} / {totalHumanPlayers} Players Ready</span>
+          </div>
         </CardHeader>
-        <CardContent className="p-8 space-y-6 min-h-[300px] flex flex-col justify-center items-center">
+        <CardContent className="p-8 space-y-6 min-h-[350px] flex flex-col justify-center items-center">
           <div
             className={`text-6xl font-extrabold tracking-tight p-8 rounded-xl shadow-2xl transition-all duration-300 ease-in-out w-full ${
-              game.gameData.isImpostor
+              isCurrentPlayerImpostor // Use game.isImpostor
                 ? "bg-gradient-to-br from-destructive via-destructive/90 to-red-700 text-destructive-foreground animate-pulse-slow"
-                : "bg-gradient-to-br from-primary via-primary/90 to-blue-700 text-primary-foreground" // Assuming primary is blueish
+                : "bg-gradient-to-br from-primary via-primary/90 to-blue-700 text-primary-foreground"
             }`}
           >
-            {game.gameData.isImpostor ? "🤫 YOU ARE THE IMPOSTOR 🤫" : game.gameData.word}
+            {isCurrentPlayerImpostor ? "🤫 YOU ARE THE IMPOSTOR 🤫" : game.gameData.word}
           </div>
-          {!game.gameData.isImpostor && (
+          {!isCurrentPlayerImpostor && (
              <p className="text-2xl text-muted-foreground font-medium pt-2">Hint: <span className="text-accent-foreground">{game.gameData.hint}</span></p>
           )}
-          {game.gameData.isImpostor && (
+          {isCurrentPlayerImpostor && (
              <p className="text-xl text-destructive-foreground/80 font-medium pt-2">Blend in. Don't reveal yourself!</p>
           )}
-          {/* Timer Display (Placeholder - to be implemented if timer data is available) */}
-          {/* {game.timerRemaining !== undefined && <p className="text-accent-foreground text-4xl font-mono mt-4 animate-pulse">{game.timerRemaining}s</p>} */}
-          {isHost && ( // isHost is defined from currentPlayer
-            <Button
-              onClick={() => hostSkipWordShow()}
-              variant="ghost"
-              size="sm"
-              className="mt-8 text-sm text-muted-foreground hover:text-accent-foreground opacity-90 hover:opacity-100 transition-opacity"
-            >
-              Skip Reveal
-            </Button>
+          {game.timerRemaining !== undefined && (
+            <p className="text-accent-foreground text-3xl font-mono animate-pulse tabular-nums">
+              {game.timerRemaining}s
+            </p>
           )}
+          <div className="w-full space-y-3 mt-6">
+            <Button
+              onClick={readyUp}
+              disabled={isPlayerReady}
+              className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-lg py-6 rounded-lg shadow-lg transition-all hover:scale-105 focus:ring-4 focus:ring-green-500/50 disabled:opacity-70"
+            >
+              {isPlayerReady ? "✔️ Ready" : "I'm Ready!"}
+            </Button>
+            {isHost && (
+              <Button
+                onClick={hostSkipWordShow}
+                variant="ghost"
+                size="sm"
+                className="w-full text-sm text-muted-foreground hover:text-accent-foreground opacity-90 hover:opacity-100 transition-opacity"
+              >
+                Skip Phase for All
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
     );
@@ -121,27 +222,23 @@ export function WordImpostorGame({ game }: { game: GameState }) {
   // DISCUSSION Phase UI
   if (game?.phase === GAME_PHASES.DISCUSSION) {
     const hasSubmittedClue = !!game.clues?.find(c => c.playerId === persistentPlayerId);
-    // Player can ready if they have submitted a clue, or if they are the imposter
-    // (assuming imposter does not submit a clue in the same way).
-    // This might need game.gameData.isImpostor if available here, or a check on currentPlayer.
-    const isImpostor = game.gameData?.isImpostor; // Check if this data is reliably present in DISCUSSION
-    const canPlayerReady = hasSubmittedClue || isImpostor;
+    const canPlayerReady = hasSubmittedClue || isCurrentPlayerImpostor;
+    const isPlayerReady = game.readyPlayers?.includes(persistentPlayerId ?? '');
+    const totalHumanPlayers = game.players.filter(p => !p.isBot).length;
 
     return (
       <Card className="w-full max-w-2xl mx-auto bg-card/90 backdrop-blur-lg border-border shadow-2xl rounded-xl">
         <CardHeader className="text-center border-b border-border/50 pb-4 pt-6">
           <CardTitle className="text-4xl font-extrabold text-primary-foreground tracking-tight">Discussion</CardTitle>
-          <div className="mt-3 text-lg text-accent-foreground font-mono">
-            {/* Placeholder for Timer & Ready Count */}
-            <span>Time: {game.timerRemaining ?? 'N/A'}s</span> | <span>{game.readyPlayers?.length || 0}/{game.players.filter(p => !p.isBot).length} Ready</span>
+          <div className="mt-3 text-lg text-accent-foreground font-mono tabular-nums">
+            <span>Time: {game.timerRemaining ?? 'N/A'}s</span> | <span>{game.readyPlayers?.length || 0}/{totalHumanPlayers} Ready</span>
           </div>
           <p className="text-muted-foreground pt-2 text-base">
-            {isImpostor ? "You are the Impostor. Blend in with a misleading clue if you dare, or stay silent." : "Submit your unique one-word clue, then discuss to find the impostor."}
+            {isCurrentPlayerImpostor ? "You are the Impostor. Blend in, observe clues, and prepare your defense." : "Submit your unique one-word clue, then discuss to find the impostor."}
           </p>
         </CardHeader>
         <CardContent className="p-6 space-y-6">
-          {/* Clue Submission Area */}
-          {!hasSubmittedClue && !isImpostor && (
+          {!hasSubmittedClue && !isCurrentPlayerImpostor && (
             <div className="flex gap-3 items-stretch p-1 bg-muted/30 rounded-lg shadow">
               <Input
                 placeholder="Enter your one-word clue..."
@@ -149,26 +246,25 @@ export function WordImpostorGame({ game }: { game: GameState }) {
                 onChange={(e) => setClue(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && handleSubmitClue()}
                 className="flex-grow bg-input text-foreground placeholder:text-muted-foreground rounded-md text-base p-5 h-auto shadow-inner"
-                disabled={hasSubmittedClue || isImpostor}
+                disabled={hasSubmittedClue || isCurrentPlayerImpostor}
               />
               <Button
                 onClick={handleSubmitClue}
-                disabled={!clue.trim() || hasSubmittedClue || isImpostor}
+                disabled={!clue.trim() || hasSubmittedClue || isCurrentPlayerImpostor}
                 className="bg-primary text-primary-foreground hover:bg-primary/90 px-8 py-3 text-base rounded-md shadow-lg transition-transform hover:scale-105"
               >
                 Submit Clue
               </Button>
             </div>
           )}
-          {(hasSubmittedClue || isImpostor) && (
+          {(hasSubmittedClue || isCurrentPlayerImpostor) && (
              <div className="text-center p-4 bg-secondary/70 rounded-lg shadow-md">
                 <p className="text-secondary-foreground font-medium text-base">
-                  {isImpostor ? "You are the Impostor. Observe the clues and prepare to defend yourself." : "Your clue is submitted! Discuss with other players."}
+                  {isCurrentPlayerImpostor ? "You are the Impostor. Observe the clues and prepare to defend yourself." : "Your clue is submitted! Discuss with other players."}
                 </p>
              </div>
           )}
 
-          {/* Submitted Clues List */}
           {game.clues && game.clues.length > 0 && (
             <div className="space-y-3 pt-4">
               <h3 className="text-2xl font-semibold text-primary-foreground mb-3 text-center tracking-tight">Submitted Clues</h3>
@@ -200,18 +296,17 @@ export function WordImpostorGame({ game }: { game: GameState }) {
             </div>
           )}
 
-          {/* Action Buttons: Ready Up & Host Controls */}
           <div className="flex flex-col sm:flex-row gap-4 pt-6">
             <Button
-              onClick={() => readyUp()}
-              disabled={!canPlayerReady || !!game.readyPlayers?.includes(persistentPlayerId ?? '')}
+              onClick={readyUp}
+              disabled={!canPlayerReady || isPlayerReady}
               className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-lg py-6 rounded-lg shadow-lg transition-all hover:scale-105 focus:ring-4 focus:ring-green-500/50 disabled:opacity-70"
             >
-              {!!game.readyPlayers?.includes(persistentPlayerId ?? '') ? "✔️ Ready!" : "Ready to Vote"}
+              {isPlayerReady ? "✔️ Ready!" : "Ready to Vote"}
             </Button>
             {isHost && (
               <Button
-                onClick={() => hostEndDiscussion()}
+                onClick={hostEndDiscussion}
                 variant="outline"
                 className="flex-1 border-accent text-accent-foreground hover:bg-accent/20 hover:border-accent/70 text-lg py-6 rounded-lg shadow-lg transition-all hover:scale-105 focus:ring-4 focus:ring-accent/50"
               >
@@ -227,20 +322,20 @@ export function WordImpostorGame({ game }: { game: GameState }) {
   // VOTING Phase UI
   if (game?.phase === GAME_PHASES.VOTING) {
     const hasVoted = !!game.votes?.find(v => 'voterId' in v && v.voterId === persistentPlayerId);
+    const totalHumanPlayers = game.players.filter(p => !p.isBot).length;
 
     return (
       <Card className="w-full max-w-lg mx-auto bg-card/90 backdrop-blur-lg border-border shadow-2xl rounded-xl">
         <CardHeader className="text-center border-b border-border/50 pb-4 pt-6">
           <CardTitle className="text-4xl font-extrabold text-primary-foreground tracking-tight">Vote Now!</CardTitle>
-          {/* Timer & Ready Count (Placeholder) */}
-          <div className="mt-3 text-lg text-accent-foreground font-mono">
-            <span>Time: {game.timerRemaining ?? 'N/A'}s</span> | <span>{game.readyPlayers?.length || 0}/{game.players.filter(p=>!p.isBot).length} Ready</span>
+          <div className="mt-3 text-lg text-accent-foreground font-mono tabular-nums">
+            <span>Time: {game.timerRemaining ?? 'N/A'}s</span> | <span>{game.readyPlayers?.length || 0}/{totalHumanPlayers} Ready</span>
           </div>
           <p className="text-muted-foreground pt-2 text-base">Select the player you suspect is the Impostor.</p>
         </CardHeader>
         <CardContent className="p-6 space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {game?.players.filter(p => p.isConnected).map((player) => ( // Only show connected players for voting
+            {game?.players.filter(p => p.isConnected).map((player) => (
               <Button
                 key={player.id}
                 variant="outline"
@@ -262,14 +357,12 @@ export function WordImpostorGame({ game }: { game: GameState }) {
                   className="rounded-full border-2 border-muted shadow-sm"
                 />
                 <span className="font-semibold text-base">{player.name}</span>
-                {/* {player.id === persistentPlayerId && <span className="text-xs text-muted-foreground ml-1">(You)</span>} */}
               </Button>
             ))}
           </div>
-           {/* Action Buttons: Ready Up & Host Controls */}
           <div className="flex flex-col sm:flex-row gap-4 pt-6">
             <Button
-              onClick={() => readyUp()}
+              onClick={readyUp}
               disabled={!hasVoted || !!game.readyPlayers?.includes(persistentPlayerId ?? '')}
               className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white text-lg py-6 rounded-lg shadow-lg transition-all hover:scale-105 focus:ring-4 focus:ring-green-500/50 disabled:opacity-70"
             >
@@ -277,7 +370,7 @@ export function WordImpostorGame({ game }: { game: GameState }) {
             </Button>
             {isHost && (
               <Button
-                onClick={() => hostEndVoting()}
+                onClick={hostEndVoting}
                 variant="outline"
                 className="flex-1 border-accent text-accent-foreground hover:bg-accent/20 hover:border-accent/70 text-lg py-6 rounded-lg shadow-lg transition-all hover:scale-105 focus:ring-4 focus:ring-accent/50"
               >
@@ -344,9 +437,6 @@ export function WordImpostorGame({ game }: { game: GameState }) {
             </div>
           </div>
 
-          {/* Detailed vote breakdown (optional) - Could be a collapsible section */}
-          {/* Consider adding a display of who voted for whom if desired */}
-
           {isHost && (
             <Button
               onClick={resetGame}
@@ -363,7 +453,6 @@ export function WordImpostorGame({ game }: { game: GameState }) {
     );
   }
 
-  // Fallback for unknown or loading phase
   return (
     <div className="text-center py-20">
       <svg className="mx-auto h-12 w-12 text-muted-foreground animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">

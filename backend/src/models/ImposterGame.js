@@ -51,31 +51,106 @@ class WordImpostorGame extends Game {
 
   _addBotPlayers(numBots) {
     // Basic structure for adding bots
-    // Will be fleshed out in subsequent steps
+    // Initial setup of multiple bots (e.g. at game creation)
     for (let i = 0; i < numBots; i++) {
-      const botId = `bot-${Date.now()}-${i}`;
-      const botName = `Bot ${String.fromCharCode(65 + i)}`; // Bot A, Bot B, etc.
-
-      // Max players check (assuming this.maxPlayers is available from Game class or config)
-      if (this.players.size >= (this.maxPlayers || 10)) {
-        console.warn(`Max players reached, cannot add bot ${botName}. Total players: ${this.players.size}`);
-        break;
-      }
-
-      const botPlayer = {
-        id: botId,
-        name: botName,
-        socketId: null, // Bots don't have sockets
-        isHost: false,
-        isConnected: true, // Bots are always "connected"
-        isBot: true,
-        score: 0,
-        avatarUrl: `https://api.dicebear.com/8.x/bottts/svg?seed=${encodeURIComponent(botId)}`, // Added avatar for bots (using 'bottts' style)
-      };
-      this.players.set(botId, botPlayer);
-      console.log(`Bot ${botName} (ID: ${botId}) added to game ${this.code}. Total players: ${this.players.size}`);
+      this._createSingleBot(); // Call the new single bot creation logic
     }
   }
+
+  // New method to create a single bot, can be called by _addBotPlayers or the new addBotPlayer action
+  _createSingleBot() {
+    if (this.players.size >= config.maxPlayersPerGame) {
+      // This check is important here for any internal calls.
+      // The addBotPlayer action will also have this check.
+      console.warn(`Max players (${config.maxPlayersPerGame}) reached. Cannot add more bots.`);
+      return null; // Or throw error if called from a context expecting a bot
+    }
+
+    // Find the highest existing bot number to create a unique name like Bot 1, Bot 2, etc.
+    let botNum = 0;
+    this.players.forEach(player => {
+      if (player.isBot) {
+        const match = player.name.match(/^Bot (\d+)$/);
+        if (match && parseInt(match[1]) > botNum) {
+          botNum = parseInt(match[1]);
+        }
+      }
+    });
+    botNum++; // Next bot number
+
+    const botId = `bot-${Date.now()}-${botNum}`;
+    const botName = `Bot ${botNum}`;
+
+    const botPlayer = {
+      id: botId,
+      name: botName,
+      socketId: null,
+      isHost: false,
+      isConnected: true,
+      isBot: true,
+      score: 0,
+      avatarStyle: 'bottts', // Assign bot-specific style
+      // avatarUrl is now a getter in Player.js, it will use this avatarStyle.
+      isReady: false,
+    };
+
+    // Create a temporary Player instance to access the getter, then spread it.
+    // This is a bit of a workaround because the botPlayer object literal doesn't have the getter.
+    // Alternatively, if Player class was imported, we could instantiate it.
+    // For now, we'll rely on the structure matching what Player class would have.
+    // The actual Player objects in this.players (if created by Game.addPlayer) will have the getter.
+    // Since _createSingleBot is adding directly to this.players, it needs to ensure the object has all needed fields.
+    // The base Player class should be used for consistency if possible, or ensure structure matches.
+    // Let's assume the structure is sufficient and `getClientState` will correctly use the getter from the prototype.
+    // Actually, Player objects ARE created by the base Game class's addPlayer if we call it.
+    // However, _addBotPlayers and _createSingleBot currently create object literals.
+    // This should be fine as long as all necessary properties are present for getClientState's mapping.
+    // The Player class in Game.js defines the getter, so when getClientState maps players,
+    // if player objects are plain objects, they won't have the getter.
+    // This means bots added via _createSingleBot might not have their avatarUrl generated via getter.
+    // Let's refine _createSingleBot to create a proper Player instance or ensure it has a concrete avatarUrl.
+
+    // To ensure bots have a concrete avatarUrl consistent with Player class logic:
+    const tempBotPlayer = { ...botPlayer }; // temporary to avoid direct modification before logging
+    tempBotPlayer.avatarUrl = `https://api.dicebear.com/8.x/${tempBotPlayer.avatarStyle}/svg?seed=${encodeURIComponent(botId)}`;
+
+
+    this.players.set(botId, tempBotPlayer); // Store the bot object with concrete avatarUrl
+    console.log(`Bot ${botName} (ID: ${botId}) added to game ${this.code}. Total players: ${this.players.size}`);
+    return botPlayer;
+  }
+
+  addBotPlayer(actingPlayerId) {
+    const actor = this.players.get(actingPlayerId);
+    if (!actor || !actor.isHost) {
+      throw new Error("Only the host can add bot players.");
+    }
+    if (this.phase !== GAME_PHASES.WAITING) {
+      throw new Error("Bots can only be added during the WAITING phase.");
+    }
+    if (this.players.size >= config.maxPlayersPerGame) {
+      throw new Error(`Cannot add bot: Game is full (max ${config.maxPlayersPerGame} players).`);
+    }
+
+    const newBot = this._createSingleBot();
+    if (!newBot) {
+        // Should not happen if max player check above is correct, but as a safeguard
+        throw new Error("Failed to create bot, possibly due to reaching max player limit unexpectedly.");
+    }
+
+    // The game state will be broadcast by the game handler after any successful action
+    // We can return an event specific to bot joining if needed by client for special handling,
+    // but a general gameStateUpdate is usually sufficient.
+    return { broadcast: true, event: 'playerJoined', data: { newPlayer: newBot, gameCode: this.code } };
+    // Or simply return { broadcast: true } and rely on the generic game state update.
+    // Let's go with a more specific event if the client wants to react to "bot added" differently.
+    // However, the standard is to just send the new game state.
+    // For now, let's assume the generic handler will send the full game state.
+    // So, the specific data for 'playerJoined' might be redundant if the full state is sent.
+    // Let's simplify: the action succeeds, and the handler will broadcast the new state.
+    return { broadcast: true }; // Signal that game state changed and needs broadcasting
+  }
+
 
   handleAction(playerId, action, data) {
     switch (action) {
@@ -98,10 +173,34 @@ class WordImpostorGame extends Game {
         return this.hostEndVoting(playerId);
       case 'resetGame':
         return this.resetGame(playerId);
+      case 'addBot': // New action
+        return this.addBotPlayer(playerId);
+      case 'changeAvatarStyle':
+        return this.changeAvatarStyle(playerId, data.style);
       default:
         console.warn(`Unknown action: ${action} by player ${playerId}`);
         throw new Error(`Unknown action: ${action}`);
     }
+  }
+
+  changeAvatarStyle(playerId, newStyle) {
+    const player = this.players.get(playerId);
+    if (!player) {
+      throw new Error("Player not found.");
+    }
+    if (player.isBot) {
+      throw new Error("Bots cannot change their avatar style.");
+    }
+
+    if (!config.availableAvatarStyles.includes(newStyle)) {
+      throw new Error(`Invalid avatar style: ${newStyle}.`);
+    }
+
+    player.avatarStyle = newStyle;
+    // The avatarUrl will be automatically updated by the getter in the Player class (Game.js)
+    console.log(`Player ${playerId} changed avatar style to ${newStyle}. New URL: ${player.avatarUrl}`);
+
+    return { broadcast: true }; // Signal game state change
   }
 
   // startRound is effectively replaced by explicit phase transition methods.
@@ -422,35 +521,50 @@ class WordImpostorGame extends Game {
 
   // --- Player Actions ---
   readyUp(playerId) {
-    if (!this.players.has(playerId)) throw new Error('Player not found.');
-    if (this.players.get(playerId).isBot) return; // Bots don't use ready up
+    const player = this.players.get(playerId);
+    if (!player) throw new Error('Player not found.');
+    if (player.isBot) {
+      console.log(`Bot ${playerId} attempted to ready up. Bots do not participate in readying.`);
+      return; // Bots don't use ready up, or return a non-broadcasting object
+    }
 
-    if (this.phase !== GAME_PHASES.DISCUSSION && this.phase !== GAME_PHASES.VOTING) {
+    if (this.phase !== GAME_PHASES.WORD_SHOW &&
+        this.phase !== GAME_PHASES.DISCUSSION &&
+        this.phase !== GAME_PHASES.VOTING) {
       throw new Error(`Cannot ready up in phase: ${this.phase}`);
+    }
+
+    if (this.readyPlayers.has(playerId)) {
+      console.log(`Player ${playerId} has already readied up in phase ${this.phase}.`);
+      // Optionally, allow un-readying, but for now, it's a one-way action per phase.
+      return { broadcast: false }; // No change, no broadcast needed.
     }
 
     this.readyPlayers.add(playerId);
     console.log(`Player ${playerId} readied up in phase ${this.phase}. Ready players: ${this.readyPlayers.size}`);
 
-    // Check if all human players are ready
     const humanPlayers = Array.from(this.players.values()).filter(p => !p.isBot && p.isConnected);
-    if (this.readyPlayers.size === humanPlayers.length) {
-      console.log(`All human players (${humanPlayers.length}) readied up. Ending phase ${this.phase} early.`);
-      this._clearAllTimers(); // Clear current phase timer
-      if (this.phase === GAME_PHASES.DISCUSSION) {
+    if (this.readyPlayers.size >= humanPlayers.length) { // Use >= for safety, though === should be sufficient
+      console.log(`All ${humanPlayers.length} human players readied up. Ending phase ${this.phase} early.`);
+      this._clearAllTimers();
+
+      if (this.phase === GAME_PHASES.WORD_SHOW) {
+        return this._transitionToDiscussion();
+      } else if (this.phase === GAME_PHASES.DISCUSSION) {
         return this._transitionToVoting();
       } else if (this.phase === GAME_PHASES.VOTING) {
         return this._transitionToResults();
       }
     }
-    // If not all ready, just acknowledge the ready up, client state will reflect this.
-    return { broadcast: true, event: 'playerReadiedUp', data: { playerId, readyCount: this.readyPlayers.size, phase: this.phase } };
+
+    // If not all ready, just acknowledge the ready up. The game state update will propagate readyPlayers.
+    return { broadcast: true, event: 'playerReadiedUp', data: { playerId, readyCount: this.readyPlayers.size, totalHumanPlayers: humanPlayers.length, phase: this.phase } };
   }
   // --- End Player Actions ---
 
 
   getClientState(playerId = null) {
-    const baseState = super.getClientState(playerId); // Gets basic player list, game code, phase, hostId
+    const baseState = super.getClientState(playerId); // Gets basic player list, game code, phase, hostId, players, maxPlayers, availableAvatarStyles
 
     // Add phase-specific data
     baseState.readyPlayers = Array.from(this.readyPlayers);
@@ -485,6 +599,14 @@ class WordImpostorGame extends Game {
     if (this.phase === GAME_PHASES.RESULTS) {
       baseState.results = this.getResults();
       baseState.votes = this.getVoteDetails(); // Send detailed votes
+    }
+
+    // Add isImpostor status for the requesting player if roles are assigned
+    if (this.impostorId && playerId) {
+      baseState.isImpostor = playerId === this.impostorId;
+    } else {
+      // Set to false or null if roles aren't assigned or playerId is null (e.g. for a general game observer if that were a feature)
+      baseState.isImpostor = false;
     }
 
     return baseState;

@@ -178,6 +178,45 @@ export function useGameSocket() {
   }, [socket, game?.code, persistentPlayerId]);
   console.log("gameo", game)
 
+  // Host actions
+  const hostSkipWordShow = useCallback(() => {
+    socket.emit("gameAction", { roomCode: game?.code, playerId: persistentPlayerId, action: "hostSkipWordShow" });
+  }, [socket, game?.code, persistentPlayerId]);
+
+  const hostEndDiscussion = useCallback(() => {
+    socket.emit("gameAction", { roomCode: game?.code, playerId: persistentPlayerId, action: "hostEndDiscussion" });
+  }, [socket, game?.code, persistentPlayerId]);
+
+  const hostEndVoting = useCallback(() => {
+    socket.emit("gameAction", { roomCode: game?.code, playerId: persistentPlayerId, action: "hostEndVoting" });
+  }, [socket, game?.code, persistentPlayerId]);
+
+  // Player actions
+  const readyUp = useCallback(() => {
+    socket.emit("gameAction", { roomCode: game?.code, playerId: persistentPlayerId, action: "readyUp" });
+  }, [socket, game?.code, persistentPlayerId]);
+
+  // New function to add a bot
+  const addBotToGame = useCallback(() => {
+    socket.emit("gameAction", {
+      roomCode: game?.code,
+      playerId: persistentPlayerId, // Host is adding the bot
+      action: "addBot",
+    });
+  }, [socket, game?.code, persistentPlayerId]);
+
+  const updateAvatarStyle = useCallback(
+    (style: string) => {
+      socket.emit("gameAction", {
+        roomCode: game?.code,
+        playerId: persistentPlayerId,
+        action: "changeAvatarStyle",
+        data: { style },
+      });
+    },
+    [socket, game?.code, persistentPlayerId]
+  );
+
   return {
     isConnected,
     game,
@@ -190,5 +229,13 @@ export function useGameSocket() {
     submitClue,
     submitVote,
     resetGame,
+    // Host actions
+    hostSkipWordShow,
+    hostEndDiscussion,
+    hostEndVoting,
+    // Player actions
+    readyUp,
+    addBotToGame,
+    updateAvatarStyle, // Expose the new function
   };
 }

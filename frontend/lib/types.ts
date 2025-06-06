@@ -9,7 +9,8 @@ export interface Player {
   votes: number;
   isEliminated: boolean;
   isConnected: boolean;
-  avatarUrl: string; // Changed from avatar?: string
+  avatarUrl: string;
+  avatarStyle?: string; // Added avatarStyle
 }
 
 export interface GameState {
@@ -35,6 +36,9 @@ export interface GameState {
     impostorCaught: boolean;
     votes: Record<string, string>;
   };
+  maxPlayers: number;
+  availableAvatarStyles?: string[];
+  isImpostor?: boolean; // Added for the current player's imposter status
   // currentRound?: number;
   // maxRounds?: number;
   // currentWord?: string;
