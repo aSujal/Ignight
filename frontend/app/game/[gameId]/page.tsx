@@ -191,7 +191,7 @@ export default function GamePage() {
         {/* Dynamic Game Component Rendering */}
         {game && (
           <AnimatePresence mode="wait">
-            {game.gameType === 'word-impostor' ? (
+            {game.type === 'word-impostor' ? (
               <motion.div
                 key="word-impostor-game"
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -224,7 +224,7 @@ export default function GamePage() {
                   <AlertCircle className="w-12 h-12 mx-auto mb-4 text-yellow-500" />
                   <h2 className="text-2xl font-semibold text-primary-foreground mb-3">Unknown Game Type</h2>
                   <p className="text-muted-foreground">
-                    The game type "<span className="font-medium text-accent-foreground">{game.gameType}</span>" is not supported by this client.
+                    The game type "<span className="font-medium text-accent-foreground">{game.type}</span>" is not supported by this client.
                   </p>
                 </Card>
               </motion.div>
@@ -238,24 +238,6 @@ export default function GamePage() {
         <Chat
           messages={[]} // Assuming messages come from game state or another source
           onSendMessage={() => {}} // Pass actual send message function
-          isOpen={isChatOpen}
-          onToggle={() => setIsChatOpen(!isChatOpen)}
-        />
-      )}
-    </div>
-  );
-}
-            {/* Removed specific phase rendering like "waiting", "playing", "voting" from here. */}
-            {/* This will be handled by the specific game component e.g. WordImpostorGame */}
-          </AnimatePresence>
-        )}
-      </div>
-
-      {/* Chat Component - Can remain here as it's a global overlay */}
-      {game && (
-        <Chat
-          messages={[]}
-          onSendMessage={() => ""}
           isOpen={isChatOpen}
           onToggle={() => setIsChatOpen(!isChatOpen)}
         />

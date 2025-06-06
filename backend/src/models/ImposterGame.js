@@ -206,7 +206,6 @@ class WordImpostorGame extends Game {
   // startRound is effectively replaced by explicit phase transition methods.
   // For example, after WORD_SHOW, the game auto-transitions or host skips to DISCUSSION.
   // I will remove startRound or repurpose it if needed later. For now, commenting out.
-  /*
   startRound(playerId){
     const player = this.players.get(playerId);
     if (!player?.isHost) throw new Error('Only host can start round');
