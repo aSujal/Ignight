@@ -38,15 +38,14 @@ export function WordImpostorGame({
   updateAvatarStyle,
 }: WordImpostorGameProps) {
   const [clue, setClue] = useState("");
-
+  
   console.log("WordImpostorGame received game state:", game);
+
   const [persistentPlayerId] = usePersistentPlayerId();
 
   const currentPlayer = game?.players.find((p: Player) => p.id === persistentPlayerId);
   const isHost = currentPlayer?.isHost;
-  // Use the new top-level game.isImpostor for the current player after roles are assigned
   const isCurrentPlayerImpostor = game.isImpostor ?? false;
-
 
   const handleSubmitClue = () => {
     if (clue.trim()) {
