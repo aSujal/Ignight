@@ -245,9 +245,9 @@ export function useGameSocket() {
     hostSkipWordShow,
     hostEndDiscussion,
     hostEndVoting,
+    removePlayer,
     // Player actions
     readyUp,
     addBotToGame,
-    removePlayer,
   };
 }
