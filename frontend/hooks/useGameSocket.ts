@@ -217,6 +217,18 @@ export function useGameSocket() {
     [socket, game?.code, persistentPlayerId]
   );
 
+  const removePlayer = useCallback(
+    (playerId: string) => {
+      socket.emit("gameAction", {
+        roomCode: game?.code,
+        playerId: persistentPlayerId,
+        action: "removePlayer",
+        data: { playerId },
+      });
+    },
+    [socket, game?.code, persistentPlayerId]
+  );
+
   return {
     isConnected,
     game,
@@ -236,6 +248,6 @@ export function useGameSocket() {
     // Player actions
     readyUp,
     addBotToGame,
-    updateAvatarStyle, // Expose the new function
+    removePlayer,
   };
 }

@@ -12,6 +12,7 @@ import { ConnectionStatus } from "@/components/connection-status";
 import { useGameSocket } from "@/hooks/useGameSocket";
 import { WordImpostorGame } from "@/components/game/WordImpostorGame";
 import ErrorMessage from "@/components/error-message";
+import ScreenLoader from "@/components/loader";
 
 export default function GamePage() {
   const params = useParams();
@@ -34,7 +35,7 @@ export default function GamePage() {
     hostEndVoting,
     readyUp,
     addBotToGame,
-    updateAvatarStyle,
+    removePlayer,
   } = useGameSocket();
 
   useEffect(() => {
@@ -82,17 +83,10 @@ export default function GamePage() {
   console.log("GamePage game state:", game);
   if (loading && !game) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col items-center justify-center text-white">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col items-center"
-        >
-          <Loader2 className="mx-auto h-16 w-16 text-blue-400 animate-spin mb-6" />
-          <p className="text-2xl font-semibold mb-2">Joining game room...</p>
-          <p className="text-lg text-muted-foreground">Game Code: {gameCode}</p>
-        </motion.div>
-      </div>
+      <ScreenLoader
+        title="Joining Game Room"
+        description={`Game Code: ${gameCode}`}
+      />
     );
   }
 
@@ -170,7 +164,7 @@ export default function GamePage() {
                   hostEndVoting={hostEndVoting}
                   readyUp={readyUp}
                   addBotToGame={addBotToGame}
-                  updateAvatarStyle={updateAvatarStyle}
+                  removePlayer={removePlayer}
                 />
               </motion.div>
             ) : (
