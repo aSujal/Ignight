@@ -4,8 +4,8 @@ export const GAME_TYPES = {
 
 export const GAME_PHASES = {
   WAITING: "waiting",
-  WORD_REVEAL: "word-reveal",
-  CLUE_GIVING: "clue-giving",
+  WORD_SHOW: "word-show",
+  DISCUSSION: "discussion",
   VOTING: "voting",
   RESULTS: "results",
 };

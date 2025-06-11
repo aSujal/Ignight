@@ -1,4 +1,5 @@
 const { GAME_PHASES } = require('../config/enums');
+const config = require('../config/config'); // Import config
 
 class Player {
   constructor(id, name, socketId, isHost = false) {
@@ -8,6 +9,15 @@ class Player {
     this.isHost = isHost;
     this.isConnected = true;
     this.isReady = false;
+    // Default to first available style or 'micah' if list is empty/not found
+    this.avatarStyle = (config.availableAvatarStyles && config.availableAvatarStyles.length > 0)
+                       ? config.availableAvatarStyles[0]
+                       : 'micah';
+    // avatarUrl is now a getter, so direct assignment is removed.
+  }
+
+  get avatarUrl() { // Added getter for dynamic URL
+    return `https://api.dicebear.com/8.x/${this.avatarStyle}/svg?seed=${encodeURIComponent(this.id)}`;
   }
 }
 
@@ -35,7 +45,7 @@ class Game {
 
   handleAction(playerId, action, data) {
     // Override in subclasses
-    throw new Error(`Action ${action} not implemented`);
+    throw new Error(`Action ${action} not implemented for game type ${this.type}`);
   }
 
   getClientState(playerId = null) {
@@ -49,8 +59,12 @@ class Game {
         name: p.name,
         isHost: p.isHost,
         isConnected: p.isConnected,
-        isReady: p.isReady
-      }))
+        isReady: p.isReady,
+        avatarUrl: p.avatarUrl, // This will now call the getter
+        avatarStyle: p.avatarStyle // Include avatarStyle in player data
+      })),
+      maxPlayers: config.maxPlayersPerGame,
+      availableAvatarStyles: config.availableAvatarStyles // Add available styles to game state
     };
   }
 
@@ -58,6 +72,7 @@ class Game {
     const player = this.players.get(playerId);
     if (player) {
       player.isConnected = false;
+      // Potentially add logic for host change if host disconnects, or game cleanup
     }
   }
 
@@ -66,7 +81,7 @@ class Game {
     if (player) {
       player.isConnected = true;
       player.socketId = socketId;
-      player.name = name;
+      player.name = name; // Allow name update on reconnect if desired
     }
   }
 

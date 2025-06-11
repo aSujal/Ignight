@@ -9,7 +9,9 @@ export interface Player {
   votes: number;
   isEliminated: boolean;
   isConnected: boolean;
-  avatar?: string;
+  avatarUrl: string;
+  avatarStyle?: string;
+  isBot?: boolean;
 }
 
 export interface GameState {
@@ -35,13 +37,15 @@ export interface GameState {
     impostorCaught: boolean;
     votes: Record<string, string>;
   };
-  // currentRound?: number;
-  // maxRounds?: number;
-  // currentWord?: string;
-  // isImposter?: boolean;
-  // votes?: Record<string, string>;
-  // timeRemaining?: number;
-  // createdAt: Date;
+  /**
+   * A mapping of player IDs to the IDs of the players they voted for.
+   */
+  votes: any[];
+  readyPlayers: string[];
+  maxPlayers: number;
+  availableAvatarStyles?: string[];
+  isImpostor?: boolean;
+  timerRemaining?: number;
 }
 
 export interface ChatMessage {

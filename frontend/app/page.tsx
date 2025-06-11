@@ -18,6 +18,7 @@ import { games } from "@/data/games";
 import { useGameSocket } from "@/hooks/useGameSocket";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { ConnectionStatus } from "@/components/connection-status";
 
 export default function HomePage() {
   // Use localStorage for persistent username
@@ -54,24 +55,7 @@ export default function HomePage() {
   console.log(games);
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Connection Status */}
-      <div className="fixed top-4 right-4 z-50">
-        <Badge
-          variant="default"
-          className={cn(
-            "flex items-center gap-2 bg-green-500",
-            isConnected ? "bg-green-500" : "bg-red-500"
-          )}
-        >
-          {isConnected ? (
-            <CheckCircle className="w-3 h-3" />
-          ) : (
-            <XCircle className="w-3 h-3" />
-          )}
-          {isConnected ? "Connected" : "Disconnected"}
-        </Badge>
-      </div>
-
+      <ConnectionStatus isConnected={isConnected} roomCode={null} />
       <div className="relative z-10 container mx-auto px-4 py-8">
         {/* Header */}
         <motion.div
@@ -84,7 +68,8 @@ export default function HomePage() {
             Ignight
           </h1>
           <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-            Play amazing multiplayer games with friends online. WebSocket real-time backend
+            Play amazing multiplayer games with friends online. WebSocket
+            real-time backend
           </p>
         </motion.div>
 
@@ -238,7 +223,7 @@ export default function HomePage() {
               <span>Up to 12 Players</span>
             </div>
           </div>
-        </motion.div> 
+        </motion.div>
       </div>
     </div>
   );
