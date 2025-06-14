@@ -6,19 +6,27 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
+import {
+  useLocalStorage,
+  usePersistentPlayerId,
+} from "@/hooks/useLocalStorage";
 import { Chat } from "@/components/chat";
 import { ConnectionStatus } from "@/components/connection-status";
 import { useGameSocket } from "@/hooks/useGameSocket";
 import { WordImpostorGame } from "@/components/game/WordImpostorGame";
 import ErrorMessage from "@/components/error-message";
 import ScreenLoader from "@/components/loader";
+import { GameState, Player } from "@/lib/types";
+import { GAME_PHASES } from "@/lib/enum";
+import { PlayerList } from "@/components/player-list";
+import { GameLobby } from "@/components/game/GameLobby";
 
 export default function GamePage() {
   const params = useParams();
   const router = useRouter();
   const gameCode = params.gameId as string;
   const [storedUsername] = useLocalStorage("ignight-username", "");
+  const [persistentPlayerId] = usePersistentPlayerId();
 
   const {
     game,
@@ -48,6 +56,63 @@ export default function GamePage() {
 
   const handleLeaveRoom = async () => {
     router.push("/");
+  };
+
+  const currentPlayer = game?.players.find(
+    (p: Player) => p.id === persistentPlayerId
+  );
+  const isHost = currentPlayer?.isHost;
+
+  const renderGame = (game: GameState) => {
+    switch (game.type) {
+      case "word-impostor":
+        return (
+          <motion.div
+            key="word-impostor-game"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="w-full"
+          >
+            <WordImpostorGame
+              game={game}
+              submitClue={submitClue}
+              submitVote={submitVote}
+              resetGame={resetGame}
+              startGame={startGame}
+              hostSkipWordShow={hostSkipWordShow}
+              hostEndDiscussion={hostEndDiscussion}
+              hostEndVoting={hostEndVoting}
+              readyUp={readyUp}
+              addBotToGame={addBotToGame}
+              removePlayer={removePlayer}
+            />
+          </motion.div>
+        );
+      default:
+        return (
+          <motion.div
+            key="unknown-game"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-10"
+          >
+            <Card className="max-w-md mx-auto bg-card/80 backdrop-blur-lg border-border shadow-xl p-8 rounded-xl">
+              <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
+              <h2 className="text-2xl font-semibold text-primary-foreground mb-3">
+                Unknown Game Type
+              </h2>
+              <p className="text-muted-foreground">
+                The game type "
+                <span className="font-medium text-accent-foreground">
+                  {game.type}
+                </span>
+                " is not supported by this client.
+              </p>
+            </Card>
+          </motion.div>
+        );
+    }
   };
 
   if (error && !game) {
@@ -80,7 +145,6 @@ export default function GamePage() {
     );
   }
 
-  console.log("GamePage game state:", game);
   if (loading && !game) {
     return (
       <ScreenLoader
@@ -143,53 +207,28 @@ export default function GamePage() {
           </div>
         </motion.div>
         {error && <ErrorMessage error={error} />}
-        {game && (
-          <AnimatePresence mode="wait">
-            {game.type === "word-impostor" ? (
-              <motion.div
-                key="word-impostor-game"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                className="w-full"
-              >
-                <WordImpostorGame
-                  game={game}
-                  submitClue={submitClue}
-                  submitVote={submitVote}
-                  resetGame={resetGame}
-                  startGame={startGame}
-                  hostSkipWordShow={hostSkipWordShow}
-                  hostEndDiscussion={hostEndDiscussion}
-                  hostEndVoting={hostEndVoting}
-                  readyUp={readyUp}
-                  addBotToGame={addBotToGame}
-                  removePlayer={removePlayer}
-                />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="unknown-game"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="text-center py-10"
-              >
-                <Card className="max-w-md mx-auto bg-card/80 backdrop-blur-lg border-border shadow-xl p-8 rounded-xl">
-                  <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
-                  <h2 className="text-2xl font-semibold text-primary-foreground mb-3">
-                    Unknown Game Type
-                  </h2>
-                  <p className="text-muted-foreground">
-                    The game type "
-                    <span className="font-medium text-accent-foreground">
-                      {game.type}
-                    </span>
-                    " is not supported by this client.
-                  </p>
-                </Card>
-              </motion.div>
-            )}
-          </AnimatePresence>
+        {game && game.phase === GAME_PHASES.WAITING && (
+          <div className="w-full max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+            <div className="md:col-span-2">
+              <PlayerList
+                players={game.players}
+                currentPlayerId={persistentPlayerId}
+                title="Players in Lobby"
+                removePlayer={removePlayer}
+                readyUp={readyUp}
+              />
+            </div>
+            <GameLobby
+              game={game}
+              isHost={isHost}
+              currentPlayer={currentPlayer}
+              startGame={startGame}
+              addBotToGame={addBotToGame}
+            />
+          </div>
+        )}
+        {game && game.phase !== GAME_PHASES.WAITING && (
+          <AnimatePresence mode="wait">{renderGame(game)}</AnimatePresence>
         )}
       </div>
       {game && (

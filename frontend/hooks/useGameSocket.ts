@@ -20,7 +20,7 @@ export function useGameSocket() {
     }
 
     socket.onAny((event, ...args) => {
-      console.log("Event received:", event, args);
+      // console.log("Event received:", event, args);
     });
 
     socket.on("connect_error", (err) => {
@@ -56,14 +56,12 @@ export function useGameSocket() {
     });
 
     socket.on("roomJoined", (game: GameState) => {
-      console.log("roomJoined", game);
       setGame(game);
       setLoading(false);
       setError(null);
     });
 
     socket.on("gameStateUpdate", (updatedGame: GameState) => {
-      console.log("gameStateUpdate", updatedGame);
       setGame(updatedGame);
       setError(null);
       setLoading(false);
@@ -169,14 +167,12 @@ export function useGameSocket() {
   );
 
   const resetGame = useCallback(() => {
-    console.log("game", game)
     socket.emit("gameAction", {
       roomCode: game?.code,
       playerId: persistentPlayerId,
       action: "resetGame",
     });
   }, [socket, game?.code, persistentPlayerId]);
-  console.log("gameo", game)
 
   // Host actions
   const hostSkipWordShow = useCallback(() => {

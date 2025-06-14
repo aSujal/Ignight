@@ -41,8 +41,6 @@ export function WordImpostorGame({
 }: WordImpostorGameProps) {
   const [clue, setClue] = useState("");
 
-  console.log("WordImpostorGame received game state:", game);
-
   const [persistentPlayerId] = usePersistentPlayerId();
 
   const currentPlayer = game?.players.find(
@@ -57,28 +55,6 @@ export function WordImpostorGame({
       setClue("");
     }
   };
-
-  if (game?.phase === GAME_PHASES.WAITING) {
-    return (
-      <div className="w-full max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-        <div className="md:col-span-2">
-          <PlayerList
-            players={game.players}
-            currentPlayerId={persistentPlayerId}
-            title="Players in Lobby"
-            removePlayer={removePlayer}
-          />
-        </div>
-        <GameLobby
-          game={game}
-          isHost={isHost}
-          currentPlayer={currentPlayer}
-          startGame={startGame}
-          addBotToGame={addBotToGame}
-        />
-      </div>
-    );
-  }
 
   if (game?.phase === GAME_PHASES.WORD_SHOW && game?.gameData) {
     const totalHumanPlayers = game.players.filter((p) => !p.isBot).length;

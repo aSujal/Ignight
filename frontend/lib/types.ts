@@ -13,7 +13,6 @@ export interface Player {
   avatarStyle?: string;
   isBot?: boolean;
 }
-
 export interface GameState {
   id: string;
   host: string;
