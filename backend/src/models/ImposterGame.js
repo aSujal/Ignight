@@ -145,6 +145,8 @@ class WordImpostorGame extends Game {
         return this.submitVote(playerId, data.votedForPlayerId);
       case "readyUp":
         return this.readyUp(playerId);
+      case "hostEndWordShow":
+        return this.hostEndWordShow(playerId);
       case "hostEndDiscussion":
         return this.hostEndDiscussion(playerId);
       case "hostEndVoting":
@@ -497,6 +499,16 @@ class WordImpostorGame extends Game {
   // --- End Phase Transition Methods ---
 
   // --- Host Actions ---
+  hostEndWordShow(playerId) {
+    if (!this.players.get(playerId)?.isHost)
+      throw new Error("Only host can end word show phase.");
+    if (this.phase !== GAME_PHASES.WORD_SHOW)
+      throw new Error(`Cannot end discussion from phase: ${this.phase}`);
+    console.log(`Host ${playerId} ending DISCUSSION phase.`);
+    this._clearAllTimers(); 
+    return this._transitionToDiscussion();
+  }
+
   hostEndDiscussion(playerId) {
     if (!this.players.get(playerId)?.isHost)
       throw new Error("Only host can end discussion.");
