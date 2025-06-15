@@ -175,8 +175,8 @@ export function useGameSocket() {
   }, [socket, game?.code, persistentPlayerId]);
 
   // Host actions
-  const hostSkipWordShow = useCallback(() => {
-    socket.emit("gameAction", { roomCode: game?.code, playerId: persistentPlayerId, action: "hostSkipWordShow" });
+  const hostEndWordShow = useCallback(() => {
+    socket.emit("gameAction", { roomCode: game?.code, playerId: persistentPlayerId, action: "hostEndWordShow" });
   }, [socket, game?.code, persistentPlayerId]);
 
   const hostEndDiscussion = useCallback(() => {
@@ -238,7 +238,7 @@ export function useGameSocket() {
     submitVote,
     resetGame,
     // Host actions
-    hostSkipWordShow,
+    hostEndWordShow,
     hostEndDiscussion,
     hostEndVoting,
     removePlayer,

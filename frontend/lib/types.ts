@@ -34,12 +34,12 @@ export interface GameState {
     impostorId: string;
     mostVotedId: string;
     impostorCaught: boolean;
-    votes: Record<string, string>;
+    votes: Vote[];
   };
   /**
    * A mapping of player IDs to the IDs of the players they voted for.
    */
-  votes: any[];
+  votes: Vote[];
   readyPlayers: string[];
   maxPlayers: number;
   availableAvatarStyles?: string[];
@@ -55,3 +55,14 @@ export interface ChatMessage {
   timestamp: Date;
   type: typeof GAME_PHASES;
 }
+
+export type Vote = {
+  voterId: string;
+  votedForPlayerId: string;
+};
+
+export type Clue = {
+  playerId: string;
+  clue: string;
+};
+

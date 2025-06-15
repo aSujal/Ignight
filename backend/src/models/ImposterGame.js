@@ -51,6 +51,10 @@ class WordImpostorGame extends Game {
         return this.submitClue(playerId, data.clue);
       case "submitVote": // This action remains, happens during VOTING phase
         return this.submitVote(playerId, data.votedForPlayerId);
+      case "readyUp":
+        return this.readyUp(playerId);
+      case "hostEndWordShow":
+        return this.hostEndWordShow(playerId);
       case "hostEndDiscussion":
         return this.hostEndDiscussion(playerId);
       case "hostEndVoting":
@@ -348,6 +352,17 @@ class WordImpostorGame extends Game {
     this._clearAllTimers();
     return this._transitionToResults();
   }
+
+  hostEndWordShow(playerId) {
+    if (!this.players.get(playerId)?.isHost)
+      throw new Error("Only host can end word show phase.");
+    if (this.phase !== GAME_PHASES.WORD_SHOW)
+      throw new Error(`Cannot end discussion from phase: ${this.phase}`);
+    console.log(`Host ${playerId} ending DISCUSSION phase.`);
+    this._clearAllTimers(); 
+    return this._transitionToDiscussion();
+  }
+
 
   resetGame(playerId) {
     const player = this.players.get(playerId);
