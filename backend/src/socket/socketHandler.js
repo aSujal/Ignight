@@ -4,6 +4,7 @@ const {
   handleJoinRoom,
   handleGameAction,
   handleDisconnect,
+  handleChatMessage,
 } = require("./gameHandlers");
 const config = require("../config/config");
 
@@ -23,6 +24,7 @@ function initializeSocket(server) {
     socket.on("joinRoom", (data) => handleJoinRoom(socket, io, data));
     socket.on("gameAction", (data) => handleGameAction(socket, io, data));
     socket.on("disconnect", () => handleDisconnect(socket, io));
+    socket.on("chatMessage", (data) => handleChatMessage(socket, io, data));
   });
 
   return io;

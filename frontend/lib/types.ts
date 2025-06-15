@@ -48,13 +48,16 @@ export interface GameState {
   timerRemaining?: number;
 }
 
+export type SenderType = "player" | "server";
+
 export interface ChatMessage {
   id: string;
-  playerId: string;
-  playerName: string;
+  senderType: SenderType;
+  playerId?: string;
+  playerName?: string;
   message: string;
   timestamp: Date;
-  type: typeof GAME_PHASES;
+  type: (typeof GAME_PHASES)[keyof typeof GAME_PHASES] | "SYSTEM"; // SYSTEM for server messages
 }
 
 export type Vote = {

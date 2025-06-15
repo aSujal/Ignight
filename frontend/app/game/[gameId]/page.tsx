@@ -1,18 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, AlertCircle } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { Chat } from "@/components/chat";
 import { ConnectionStatus } from "@/components/connection-status";
 import { useGameSocket } from "@/hooks/useGameSocket";
 import { WordImpostorGame } from "@/components/game/word-impostor/WordImpostorGame";
 import ErrorMessage from "@/components/error-message";
 import ScreenLoader from "@/components/loader";
+import { ChatDrawer } from "@/components/chat/ChatDrawer";
 
 export default function GamePage() {
   const params = useParams();
@@ -36,6 +36,8 @@ export default function GamePage() {
     readyUp,
     addBotToGame,
     removePlayer,
+    chatMessages,
+    sendChatMessage,
   } = useGameSocket();
 
   useEffect(() => {
@@ -44,9 +46,12 @@ export default function GamePage() {
     }
   }, [gameCode, storedUsername, joinRoom]);
 
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const handleSendMessage = (text: string) => {
+    console.log('handleSendMessage:', text);
+    sendChatMessage(text); // send through the socket
+  };
 
-  const handleLeaveRoom = async () => {
+  const handleLeaveRoom = () => {
     router.push("/");
   };
 
@@ -80,7 +85,6 @@ export default function GamePage() {
     );
   }
 
-  console.log("GamePage game state:", game);
   if (loading && !game) {
     return (
       <ScreenLoader
@@ -117,6 +121,8 @@ export default function GamePage() {
     );
   }
 
+  const currentPlayer = game?.players.find((p) => p.name === storedUsername);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-slate-900/50 to-background text-foreground">
       <ConnectionStatus isConnected={isConnected} roomCode={game?.code} />
@@ -138,7 +144,7 @@ export default function GamePage() {
             </Button>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
               {game?.type?.slice(0, 1)?.toUpperCase()}
-              {game?.type?.slice(1, game?.type?.length)?.replace("-", " ")}
+              {game?.type?.slice(1)?.replace("-", " ")}
             </h1>
           </div>
         </motion.div>
@@ -192,12 +198,14 @@ export default function GamePage() {
           </AnimatePresence>
         )}
       </div>
-      {game && (
-        <Chat
-          messages={[]}
-          onSendMessage={() => {}}
-          isOpen={isChatOpen}
-          onToggle={() => setIsChatOpen(!isChatOpen)}
+
+      {/* Chat Drawer */}
+      {game && currentPlayer && (
+        <ChatDrawer
+          players={game.players}
+          currentPlayerId={currentPlayer.id}
+          messages={chatMessages}
+          onSendMessage={handleSendMessage}
         />
       )}
     </div>
