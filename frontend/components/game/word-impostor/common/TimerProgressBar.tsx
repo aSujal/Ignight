@@ -1,5 +1,7 @@
 import React from "react";
 import { useTimer } from "../hooks/useTimer";
+import { Timer } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
 
 interface TimerProgressBarProps {
   timeRemaining: number | null;
@@ -22,27 +24,16 @@ export function TimerProgressBar({
   if (currentTime === null || duration === null) {
     return null;
   }
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
   return (
-    <div className={`space-y-2 ${className}`}>
+    <div className={`flex flex-col gap-2 ${className}`}>
       <div className="flex justify-between items-center text-sm">
-        {label && <span className="text-muted-foreground">{label}</span>}
-        <span className={`font-mono tabular-nums ${className}`}>
-          {formatTime(currentTime)}
-        </span>
+        {label && <span className="text-foreground text-xl">{label}</span>}
+        <div className="flex items-center gap-2">
+          <Timer className="w-4 h-4" />
+          <span className="text-foreground">{currentTime}s</span>
+        </div>
       </div>
-      <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-        <div
-          className="h-full bg-primary transition-all duration-1000 ease-linear rounded-full"
-          style={{ width: `${progress * 100}%` }}
-        />
-      </div>
+      <Progress value={progress * 100}/>
     </div>
   );
 }

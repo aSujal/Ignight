@@ -43,14 +43,11 @@ export function VotingPhase({
         <CardTitle className="text-4xl font-extrabold text-primary-foreground tracking-tight">
           Voting Time
         </CardTitle>
-          <span>
-            {votesCast}/{totalHumanPlayers} Voted
-          </span>
-        <div className="mt-3 text-lg text-accent-foreground font-mono tabular-nums">
+        <div className="mt-3">
           <TimerProgressBar
             timeRemaining={game.timerRemaining || 0}
             duration={game.timerDuration || 0}
-            label="Time Remaining"
+            label={`${votesCast}/${totalHumanPlayers} Voted`}
             className="max-w-md mx-auto"
           />
         </div>

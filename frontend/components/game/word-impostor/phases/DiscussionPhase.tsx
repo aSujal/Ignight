@@ -27,8 +27,11 @@ export function DiscussionPhase({
   const isImpostor = game.isImpostor ?? false;
   const isHost = currentPlayer?.isHost ?? false;
 
-  const hasSubmittedClue = !!game.clues?.some((c) => c.playerId === persistentPlayerId);
-  const isPlayerReady = game.readyPlayers?.includes(persistentPlayerId ?? "") ?? false;
+  const hasSubmittedClue = !!game.clues?.some(
+    (c) => c.playerId === persistentPlayerId
+  );
+  const isPlayerReady =
+    game.readyPlayers?.includes(persistentPlayerId ?? "") ?? false;
   const canPlayerReady = hasSubmittedClue || isImpostor;
   const totalHumanPlayers = game.players.filter((p) => !p.isBot).length;
 
@@ -45,13 +48,15 @@ export function DiscussionPhase({
         <CardTitle className="text-4xl font-extrabold text-primary-foreground tracking-tight">
           Discussion
         </CardTitle>
-        <div className="mt-3 text-lg text-accent-foreground font-mono tabular-nums">
+        <div className="mt-3">
           <TimerProgressBar
-              timeRemaining={game.timerRemaining || 0}
-              duration={game.timerDuration || 0}
-              className="max-w-md mx-auto"
-            />
-          <span>{game.readyPlayers?.length ?? 0}/{totalHumanPlayers} Ready</span>
+            label={`${
+              game.readyPlayers?.length ?? 0
+            }/${totalHumanPlayers} Ready`}
+            timeRemaining={game.timerRemaining || 0}
+            duration={game.timerDuration || 0}
+            className="max-w-md mx-auto"
+          />
         </div>
         <p className="text-muted-foreground pt-2 text-base">
           {isImpostor
@@ -113,7 +118,9 @@ export function DiscussionPhase({
                           className="rounded-full border-2 border-primary/60"
                         />
                       )}
-                      <span className="font-semibold text-lg">{playerName}:</span>
+                      <span className="font-semibold text-lg">
+                        {playerName}:
+                      </span>
                     </div>
                     <span className="font-bold text-xl text-right">{clue}</span>
                   </div>
