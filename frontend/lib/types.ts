@@ -45,6 +45,7 @@ export interface GameState {
   availableAvatarStyles?: string[];
   isImpostor?: boolean;
   timerRemaining?: number;
+  timerDuration?: number;
 }
 
 export interface ChatMessage {

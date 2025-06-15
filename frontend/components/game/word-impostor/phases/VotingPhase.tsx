@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { GameState, Player } from "@/lib/types";
 import { usePersistentPlayerId } from "@/hooks/useLocalStorage";
+import { TimerProgressBar } from "../common/TimerProgressBar";
 
 interface VotingPhaseProps {
   game: GameState;
@@ -26,13 +27,15 @@ export function VotingPhase({
 
   const voteCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    game.votes?.forEach(({ votedForPlayerId  }) => {
-      counts[votedForPlayerId ] = (counts[votedForPlayerId ] || 0) + 1;
+    game.votes?.forEach(({ votedForPlayerId }) => {
+      counts[votedForPlayerId] = (counts[votedForPlayerId] || 0) + 1;
     });
     return counts;
   }, [game.votes]);
 
-  const alreadyVotedFor = game.votes?.find((v) => v.voterId === persistentPlayerId)?.votedForPlayerId ;
+  const alreadyVotedFor = game.votes?.find(
+    (v) => v.voterId === persistentPlayerId
+  )?.votedForPlayerId;
 
   return (
     <Card className="w-full max-w-3xl mx-auto bg-card/90 backdrop-blur-md border-border shadow-2xl rounded-xl">
@@ -40,9 +43,16 @@ export function VotingPhase({
         <CardTitle className="text-4xl font-extrabold text-primary-foreground tracking-tight">
           Voting Time
         </CardTitle>
+          <span>
+            {votesCast}/{totalHumanPlayers} Voted
+          </span>
         <div className="mt-3 text-lg text-accent-foreground font-mono tabular-nums">
-          <span>Time: {game.timerRemaining ?? "N/A"}s</span> |{" "}
-          <span>{votesCast}/{totalHumanPlayers} Voted</span>
+          <TimerProgressBar
+            timeRemaining={game.timerRemaining || 0}
+            duration={game.timerDuration || 0}
+            label="Time Remaining"
+            className="max-w-md mx-auto"
+          />
         </div>
         <p className="text-muted-foreground pt-2 text-base">
           Vote for the player you believe is the impostor.
@@ -97,7 +107,8 @@ export function VotingPhase({
             <p className="text-secondary-foreground font-medium text-base">
               You voted for{" "}
               <strong>
-                {game.players.find((p) => p.id === alreadyVotedFor)?.name ?? "Unknown"}
+                {game.players.find((p) => p.id === alreadyVotedFor)?.name ??
+                  "Unknown"}
               </strong>
               . Waiting for other players...
             </p>

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { GameState, Player } from "@/lib/types";
 import { usePersistentPlayerId } from "@/hooks/useLocalStorage";
+import { TimerProgressBar } from "../common/TimerProgressBar";
 
 interface DiscussionPhaseProps {
   game: GameState;
@@ -37,7 +38,7 @@ export function DiscussionPhase({
       setClue("");
     }
   };
-
+  console.log("game", game);
   return (
     <Card className="w-full max-w-2xl mx-auto bg-card/90 backdrop-blur-lg border-border shadow-2xl rounded-xl">
       <CardHeader className="text-center border-b border-border/50 pb-4 pt-6">
@@ -45,7 +46,11 @@ export function DiscussionPhase({
           Discussion
         </CardTitle>
         <div className="mt-3 text-lg text-accent-foreground font-mono tabular-nums">
-          <span>Time: {game.timerRemaining ?? "N/A"}s</span> |{" "}
+          <TimerProgressBar
+              timeRemaining={game.timerRemaining || 0}
+              duration={game.timerDuration || 0}
+              className="max-w-md mx-auto"
+            />
           <span>{game.readyPlayers?.length ?? 0}/{totalHumanPlayers} Ready</span>
         </div>
         <p className="text-muted-foreground pt-2 text-base">
