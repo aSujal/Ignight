@@ -178,6 +178,15 @@ export function PlayerList({
                     <Clock className="w-3 h-3 mr-1.5" />
                     Disconnected
                   </Badge>
+                    <Button
+                      onClick={() => handleRemovePlayer(player.id)}
+                      variant="ghost"
+                      className="hover:bg-destructive/20"
+                      size="icon"
+                      title="Remove player"
+                    >
+                      <UserRoundX className="w-4 h-4" />
+                    </Button>
                 </div>
               </motion.div>
             ))}

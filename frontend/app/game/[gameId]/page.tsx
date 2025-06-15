@@ -10,7 +10,7 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { Chat } from "@/components/chat";
 import { ConnectionStatus } from "@/components/connection-status";
 import { useGameSocket } from "@/hooks/useGameSocket";
-import { WordImpostorGame } from "@/components/game/WordImpostorGame";
+import { WordImpostorGame } from "@/components/game/word-impostor/WordImpostorGame";
 import ErrorMessage from "@/components/error-message";
 import ScreenLoader from "@/components/loader";
 
@@ -30,7 +30,7 @@ export default function GamePage() {
     submitClue,
     submitVote,
     resetGame,
-    hostSkipWordShow,
+    hostEndWordShow,
     hostEndDiscussion,
     hostEndVoting,
     readyUp,
@@ -159,7 +159,7 @@ export default function GamePage() {
                   submitVote={submitVote}
                   resetGame={resetGame}
                   startGame={startGame}
-                  hostSkipWordShow={hostSkipWordShow}
+                  hostEndWordShow={hostEndWordShow}
                   hostEndDiscussion={hostEndDiscussion}
                   hostEndVoting={hostEndVoting}
                   readyUp={readyUp}
