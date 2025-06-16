@@ -39,7 +39,6 @@ class WordImpostorGame extends Game {
     this.phaseDurations = {
       [GAME_PHASES.DISCUSSION]: config.discussionDurationSeconds * 1000,
       [GAME_PHASES.VOTING]: config.votingDurationSeconds * 1000,
-      [GAME_PHASES.WORD_SHOW]: 5000,
     };
   }
 
@@ -146,13 +145,13 @@ class WordImpostorGame extends Game {
 
   submitVote(playerId, votedForPlayerId) {
     if (this.phase !== GAME_PHASES.VOTING) {
-      throw new Error(
-        `Cannot submit vote in phase: ${this.phase}. Must be in VOTING phase.`
-      );
+      throw new Error(`Cannot submit vote in phase: ${this.phase}. Must be in VOTING phase.`);
     }
+    
     if (!this.players.has(votedForPlayerId)) {
       throw new Error("Voted for player does not exist.");
     }
+
     if (this.votes.has(playerId)) {
       this.votes.delete(playerId);
     }
@@ -260,11 +259,7 @@ class WordImpostorGame extends Game {
     }
     this._setPhase(GAME_PHASES.WORD_SHOW);
     this.selectWordAndImpostor();
-    this._startTimer(
-      "wordShow",
-      this.phaseDurations[GAME_PHASES.WORD_SHOW],
-      () => this._transitionToDiscussion()
-    );
+    console.log(this.players)
     return {
       broadcast: true,
       event: "phaseChanged",
@@ -295,9 +290,9 @@ class WordImpostorGame extends Game {
     this._setPhase(GAME_PHASES.VOTING);
     this.votes.clear();
     this.triggerBotActions();
-    this._startTimer("voting", this.phaseDurations[GAME_PHASES.VOTING], () =>
-      this._transitionToResults()
-    );
+    // this._startTimer("voting", this.phaseDurations[GAME_PHASES.VOTING], () =>
+    //   this._transitionToResults()
+    // );
     return {
       broadcast: true,
       event: "phaseChanged",
@@ -431,10 +426,16 @@ class WordImpostorGame extends Game {
       }));
     }
 
+    if ([GAME_PHASES.VOTING, GAME_PHASES.RESULTS].includes(this.phase)) {
+      baseState.votes = Array.from(this.votes.entries()).map(([voterId, votedForPlayerId]) => ({
+        voterId,
+        votedForPlayerId,
+      }));
+    }
+
     // Add results data
     if (this.phase === GAME_PHASES.RESULTS) {
       baseState.results = this.getResults();
-      baseState.votes = this.getVoteDetails();
     }
 
     // Add impostor status for requesting player

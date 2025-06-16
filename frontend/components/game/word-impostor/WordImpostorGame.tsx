@@ -28,7 +28,7 @@ export function WordImpostorGame(props: WordImpostorGameProps) {
     case GAME_PHASES.DISCUSSION:
       return <DiscussionPhase game={game} readyUp={props.readyUp} hostEndDiscussion={props.hostEndDiscussion} submitClue={props.submitClue}/>;
     case GAME_PHASES.VOTING:
-      return <VotingPhase game={game} voteForPlayer={props.submitVote} hostEndVoting={props.hostEndVoting}/>;
+      return <VotingPhase game={game} voteForPlayer={props.submitVote} readyUp={props.readyUp} hostEndVoting={props.hostEndVoting}/>;
     case GAME_PHASES.RESULTS:
       return <ResultsPhase game={game} resetGame={props.resetGame}/>;
     default:

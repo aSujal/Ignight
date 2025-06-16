@@ -84,9 +84,6 @@ class Game {
     botPlayer.avatarStyle = "bottts";
 
     this.players.set(botId, botPlayer);
-    console.log(
-      `Bot ${botName} (ID: ${botId}) added to game ${this.code}. Total players: ${this.players.size}`
-    );
     return botPlayer;
   }
 
@@ -102,6 +99,8 @@ class Game {
         "Failed to create bot, possibly due to reaching max player limit unexpectedly."
       );
     }
+
+    this.readyPlayers.add(newBot.id);
 
     return {
       broadcast: true,
@@ -122,6 +121,7 @@ class Game {
     }
 
     this.players.delete(playerToKickId);
+    this.readyPlayers.delete(playerToKickId);
     console.log(
       `Player ${playerToKickId} (Name: ${playerToKick.name}) removed from game ${this.code}. Total players: ${this.players.size}`
     );
@@ -152,6 +152,15 @@ class Game {
     };
   }
 
+  clearReadyPlayersExceptBots() {
+    this.readyPlayers.forEach((playerId) => {
+      const player = this.players.get(playerId);
+      if (!player.isBot) {
+        this.readyPlayers.delete(playerId);
+      }
+    });
+  }
+
   readyUp(playerId) {
     const player = this.players.get(playerId);
     if (!player) throw new Error("Player not found.");
@@ -177,11 +186,11 @@ class Game {
 
     if (allReady) {
       this.players.forEach(player => {
-          if (!player.isBot) {
-            player.isReady = false;
-          }
-        });
-      this.readyPlayers.clear();
+        if (!player.isBot) {
+          player.isReady = false;
+        }
+      });
+      this.clearReadyPlayersExceptBots();
       this._handleAllPlayersReady();
       console.log(
         `All ${humanPlayers.length} human players readied up. Ending phase ${this.phase} early.`
@@ -253,7 +262,7 @@ class Game {
   _setPhase(newPhase) {
     this.phase = newPhase;
     this.phaseStartTime = Date.now();
-    this.readyPlayers.clear();
+    this.clearReadyPlayersExceptBots();
     console.log(`Game ${this.code} transitioning to ${this.phase}`);
   }
 

@@ -24,7 +24,7 @@ export default function WordShow({ game, readyUp, hostEndWordShow }: WordShowPro
   const totalHumanPlayers = game.players.filter((p) => !p.isBot).length;
 
   if (!game?.gameData) return null;
-
+  console.log(game) 
   const playerAvatars = (
     <div className="flex md:flex-col md:gap-6 gap-4 justify-center md:justify-start">
       {game.players.map((p) => {
