@@ -26,11 +26,7 @@ export interface GameState {
     hint: string;
     isImpostor: boolean;
   };
-  clues: {
-    playerId: string;
-    playerName: string;
-    clue: string;
-  }[];
+  clues: Clue[];
   results: {
     impostorId: string;
     mostVotedId: string;

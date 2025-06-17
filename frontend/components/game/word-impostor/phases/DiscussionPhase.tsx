@@ -8,6 +8,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { GameState } from "@/lib/types";
 import { usePersistentPlayerId } from "@/hooks/useLocalStorage";
 import { toast } from "sonner"; // Toaster system
+import PlayerClueList from "../common/PlayerClueList";
 
 interface DiscussionPhaseProps {
   game: GameState;
@@ -55,7 +56,7 @@ export function DiscussionPhase({
 
   return (
     <div className="w-full flex flex-col items-center justify-center px-4 py-6">
-      <Card className="w-full max-w-3xl bg-card/90 backdrop-blur-lg border-border shadow-2xl rounded-xl">
+      <Card className="w-full bg-card/90 backdrop-blur-lg border-border shadow-2xl rounded-xl">
         <CardHeader className="text-center border-b border-border/50 pb-4 pt-6">
           <CardTitle className="text-4xl font-extrabold text-primary-foreground tracking-tight">
             Discussion
@@ -76,21 +77,7 @@ export function DiscussionPhase({
 
         <CardContent className="p-6 space-y-6">
           {/* MULTIPLE CLUE SUBMISSIONS */}
-          <div className="flex gap-3 items-stretch p-1 bg-muted/30 rounded-lg shadow">
-            <Input
-              placeholder="Enter your one-word clue..."
-              value={clue}
-              onChange={(e) => setClue(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSubmitClue()}
-              className="flex-grow p-5 h-auto text-base rounded-md"
-            />
-            <Button
-              onClick={handleSubmitClue}
-              className="px-6 py-3 text-base rounded-md shadow-lg"
-            >
-              Submit
-            </Button>
-          </div>
+
 
           {submittedClues.length > 0 && (
             <div className="text-center p-4 bg-secondary/70 rounded-lg shadow-md">
@@ -100,8 +87,20 @@ export function DiscussionPhase({
             </div>
           )}
 
+          {game.players.length > 0 && (
+            <div className="flex justify-between flex-wrap">
+              {game.players.map((player, index) => {
+                  const playerClues = game.clues.filter((c) => c.playerId === player.id);
+                return (
+                  <PlayerClueList player={player} playerClues={playerClues}/>
+                );
+              })}
+            </div>
+          )}
+
+          
           {/* CLUE LIST */}
-          {game.clues.length > 0 && (
+          {/* {game.clues.length > 0 && (
             <div className="space-y-3 pt-4">
               <h3 className="text-2xl font-semibold text-primary-foreground mb-3 text-center">
                 Submitted Clues
@@ -132,7 +131,23 @@ export function DiscussionPhase({
                 })}
               </div>
             </div>
-          )}
+          )} */}
+
+          <div className="flex gap-3 justify-stretch items-center p-1 bg-muted/20 rounded-lg shadow">
+            <Input
+              placeholder="Enter your one-word clue..."
+              value={clue}
+              onChange={(e) => setClue(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmitClue()}
+              className="flex-grow p-5 h-auto text-base rounded-md"
+            />
+            <Button
+              onClick={handleSubmitClue}
+              className="px-6 py-3 text-base rounded-md shadow-lg h-auto"
+            >
+              Submit
+            </Button>
+          </div>
 
           {/* READY + HOST CONTROLS */}
           <div className="flex flex-col sm:flex-row gap-4 pt-6">

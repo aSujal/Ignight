@@ -2,29 +2,9 @@
 const Game = require("./Game");
 const { GAME_PHASES } = require("../config/enums");
 const config = require("../config/config"); // Import config
+const IMPOSTER_GAME_WORD_SETS  = require("../data/imposterGameWordSets");
 
-const WORD_SETS = [
-  { word: "PIZZA", hint: "Food" },
-  { word: "OCEAN", hint: "Water" },
-  { word: "GUITAR", hint: "Music" },
-  { word: "BUTTERFLY", hint: "Insect" },
-  { word: "CASTLE", hint: "Building" },
-  { word: "RAINBOW", hint: "Colors" },
-  { word: "TELESCOPE", hint: "Science" },
-  { word: "VOLCANO", hint: "Mountain" },
-  { word: "LIBRARY", hint: "Books" },
-  { word: "DIAMOND", hint: "Gem" },
-  { word: "SANDWICH", hint: "Food" },
-  { word: "HELICOPTER", hint: "Vehicle" },
-  { word: "PENGUIN", hint: "Animal" },
-  { word: "KEYBOARD", hint: "Computer" },
-  { word: "SUNFLOWER", hint: "Plant" },
-  { word: "MOTORCYCLE", hint: "Vehicle" },
-  { word: "AQUARIUM", hint: "Fish" },
-  { word: "CACTUS", hint: "Plant" },
-  { word: "LIGHTHOUSE", hint: "Building" },
-  { word: "PARACHUTE", hint: "Sky" },
-];
+const WORD_SETS = IMPOSTER_GAME_WORD_SETS;
 
 class WordImpostorGame extends Game {
   constructor(hostId, hostName, socketId) {
@@ -185,6 +165,7 @@ class WordImpostorGame extends Game {
   }
 
   startGame(playerId) {
+    console.log('startGame in imposterGame.js:',playerId);
     const player = this.players.get(playerId);
     if (!player?.isHost) throw new Error("Only host can start game");
     if (this.players.size < 3) throw new Error("Need at least 3 players");
@@ -196,6 +177,7 @@ class WordImpostorGame extends Game {
   }
 
   selectWordAndImpostor() {
+    console.log("WORD_SETS:",WORD_SETS);
     const wordSet = WORD_SETS[Math.floor(Math.random() * WORD_SETS.length)];
     this.currentWord = wordSet;
 

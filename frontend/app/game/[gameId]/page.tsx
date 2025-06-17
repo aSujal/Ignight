@@ -63,22 +63,33 @@ export default function GamePage() {
           <h2 className="text-2xl font-bold mb-4">Unable to Join Game</h2>
           <p className="text-gray-300 mb-6">{error}</p>
           <div className="space-y-2">
-            {gameCode && storedUsername && (
+            {(gameCode && storedUsername) ? (
+              <div className="flex items-center justify-center gap-2">
+                <Button
+                  onClick={handleLeaveRoom}
+                  className="border-white/20"
+                  variant="outline"
+                  disabled={loading}
+                  >
+                  Leave Room
+                </Button>
+                <Button
+                  onClick={() => joinRoom(gameCode, storedUsername)}
+                  className="bg-gradient-to-r from-blue-500 to-cyan-600 mr-2 hover:bg-gradient-to-l hover:border-black/20"
+                  variant="outline"
+                  >
+                  Retry
+                </Button>
+              </div>
+            ) :
               <Button
-                onClick={handleLeaveRoom}
-                className="bg-gradient-to-r from-blue-500 to-cyan-600 mr-2"
-                disabled={loading}
+                onClick={() => router.push("/")}
+                variant="outline"
+                className="border-white/20"
               >
-                Leave Room
+                Back to Home
               </Button>
-            )}
-            <Button
-              onClick={() => router.push("/")}
-              variant="outline"
-              className="border-white/20"
-            >
-              Back to Home
-            </Button>
+            }
           </div>
         </div>
       </div>
