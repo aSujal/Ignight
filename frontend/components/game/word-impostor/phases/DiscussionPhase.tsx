@@ -1,14 +1,14 @@
 "use client";
 
-import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import {  useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { GameState } from "@/lib/types";
 import { usePersistentPlayerId } from "@/hooks/useLocalStorage";
-import { toast } from "sonner"; // Toaster system
-import PlayerClueList from "../common/PlayerClueList";
+import { toast } from "sonner";
+import PlayerListVirtualized from "../common/PlayerListVirtualized";
+import TimerProgressBar from "@/components/common/TimerProgressBar";
 
 interface DiscussionPhaseProps {
   game: GameState;
@@ -55,121 +55,76 @@ export function DiscussionPhase({
   };
 
   return (
-    <div className="w-full flex flex-col items-center justify-center px-4 py-6">
-      <Card className="w-full bg-card/90 backdrop-blur-lg border-border shadow-2xl rounded-xl">
-        <CardHeader className="text-center border-b border-border/50 pb-4 pt-6">
-          <CardTitle className="text-4xl font-extrabold text-primary-foreground tracking-tight">
-            Discussion
-          </CardTitle>
-          <div className="mt-3 text-lg text-accent-foreground font-mono tabular-nums">
-            {game.timerRemaining !== undefined && (
-              <span>Time: {game.timerRemaining}s</span>
-            )}
-            {"  |  "}
-            <span>{game.readyPlayers?.length ?? 0}/{totalHumanPlayers} Ready</span>
-          </div>
-          <p className="text-muted-foreground pt-2 text-base">
-            {isImpostor
-              ? "You are the Impostor. Blend in, observe clues, and prepare your defense."
-              : "Submit one-word clues (multiple allowed), then discuss to find the impostor."}
-          </p>
-        </CardHeader>
-
-        <CardContent className="p-6 space-y-6">
-          {/* MULTIPLE CLUE SUBMISSIONS */}
-
-
-          {submittedClues.length > 0 && (
-            <div className="text-center p-4 bg-secondary/70 rounded-lg shadow-md">
-              <p className="text-secondary-foreground font-medium text-base">
-                You've submitted {submittedClues.length} clue{submittedClues.length > 1 ? "s" : ""}.
-              </p>
+    <>
+      {game.timerRemaining !== undefined && (
+        <TimerProgressBar duration={60} remaining={game.timerRemaining} />
+      )}
+      <div className="w-full flex flex-col items-center justify-center px-4 py-6">
+        <Card className="w-full max-w-7xl bg-card/90 backdrop-blur-lg border border-border shadow-xl rounded-2xl">
+          <CardHeader className="text-center border-b border-border/50 pb-4 pt-6">
+            <CardTitle className="text-4xl font-extrabold text-primary-foreground tracking-tight">
+              Discussion
+            </CardTitle>
+            <div className="mt-3 text-base sm:text-lg text-accent-foreground font-mono tabular-nums">
+              {"  |  "}
+              <span>{game.readyPlayers?.length ?? 0}/{totalHumanPlayers} Ready</span>
             </div>
-          )}
+            <p className="text-muted-foreground pt-2 text-sm sm:text-base max-w-2xl mx-auto">
+              {isImpostor
+                ? "You are the Impostor. Blend in, observe clues, and prepare your defense."
+                : "Submit one-word clues (multiple allowed), then discuss to find the impostor."}
+            </p>
+          </CardHeader>
 
-          {game.players.length > 0 && (
-            <div className="flex justify-between flex-wrap">
-              {game.players.map((player, index) => {
-                  const playerClues = game.clues.filter((c) => c.playerId === player.id);
-                return (
-                  <PlayerClueList player={player} playerClues={playerClues}/>
-                );
-              })}
-            </div>
-          )}
+          <CardContent className="p-4 sm:p-6 space-y-6">
 
-          
-          {/* CLUE LIST */}
-          {/* {game.clues.length > 0 && (
-            <div className="space-y-3 pt-4">
-              <h3 className="text-2xl font-semibold text-primary-foreground mb-3 text-center">
-                Submitted Clues
-              </h3>
-              <div className="max-h-72 overflow-y-auto space-y-3 p-2 bg-background/50 rounded-lg">
-                {game.clues.map(({ playerId, playerName, clue }, idx) => {
-                  const cluePlayer = game.players.find((p) => p.id === playerId);
-                  return (
-                    <div
-                      key={`${playerId}-${idx}`}
-                      className="flex items-center justify-between p-4 bg-muted/80 rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        {cluePlayer && (
-                          <Image
-                            src={cluePlayer.avatarUrl}
-                            alt={`${playerName}'s avatar`}
-                            width={40}
-                            height={40}
-                            className="rounded-full border-2 border-primary/60"
-                          />
-                        )}
-                        <span className="font-semibold text-lg">{playerName}:</span>
-                      </div>
-                      <span className="font-bold text-xl text-right">{clue}</span>
-                    </div>
-                  );
-                })}
+            {submittedClues.length > 0 && (
+              <div className="text-center p-4 bg-secondary/70 rounded-lg shadow-inner">
+                <p className="text-secondary-foreground font-medium text-base">
+                  You've submitted {submittedClues.length} clue{submittedClues.length > 1 ? "s" : ""}.
+                </p>
               </div>
-            </div>
-          )} */}
+            )}
 
-          <div className="flex gap-3 justify-stretch items-center p-1 bg-muted/20 rounded-lg shadow">
-            <Input
-              placeholder="Enter your one-word clue..."
-              value={clue}
-              onChange={(e) => setClue(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSubmitClue()}
-              className="flex-grow p-5 h-auto text-base rounded-md"
-            />
-            <Button
-              onClick={handleSubmitClue}
-              className="px-6 py-3 text-base rounded-md shadow-lg h-auto"
-            >
-              Submit
-            </Button>
-          </div>
+            {game.players.length > 0 && <PlayerListVirtualized game={game} />}
 
-          {/* READY + HOST CONTROLS */}
-          <div className="flex flex-col sm:flex-row gap-4 pt-6">
-            <Button
-              onClick={readyUp}
-              disabled={!canPlayerReady || isPlayerReady}
-              className="flex-1 py-6 text-lg rounded-lg shadow-lg"
-            >
-              {isPlayerReady ? "✔️ Ready!" : "Ready to Vote"}
-            </Button>
-            {isHost && (
+            <div className="flex flex-col sm:flex-row gap-3 p-3 bg-muted/20 rounded-xl shadow">
+              <Input
+                placeholder="Enter your one-word clue..."
+                value={clue}
+                onChange={(e) => setClue(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSubmitClue()}
+                className="flex-grow p-4 h-auto text-base rounded-md"
+                />
               <Button
+                onClick={handleSubmitClue}
+                className="px-6 py-3 text-base rounded-md shadow-md h-auto w-full sm:w-auto"
+                >
+                Submit
+              </Button>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 pt-6">
+              <Button
+                onClick={readyUp}
+                disabled={!canPlayerReady || isPlayerReady}
+                className="flex-1 py-5 text-lg rounded-lg shadow-lg"
+                >
+                {isPlayerReady ? "✔️ Ready!" : "Ready to Vote"}
+              </Button>
+              {isHost && (
+                <Button
                 onClick={hostEndDiscussion}
                 variant="outline"
-                className="flex-1 py-6 text-lg rounded-lg shadow-lg"
-              >
-                End Discussion
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+                className="flex-1 py-5 text-lg rounded-lg shadow-lg"
+                >
+                  End Discussion
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </>
   );
 }
