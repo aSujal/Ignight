@@ -44,6 +44,7 @@ export default function GamePage() {
     readyUp,
     addBotToGame,
     removePlayer,
+    updateAvatar,
   } = useGameSocket();
 
   useEffect(() => {
@@ -224,6 +225,7 @@ export default function GamePage() {
               currentPlayer={currentPlayer}
               startGame={startGame}
               addBotToGame={addBotToGame}
+              updateAvatar={updateAvatar}
             />
           </div>
         )}

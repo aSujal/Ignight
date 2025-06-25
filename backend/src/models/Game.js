@@ -14,12 +14,20 @@ class Player {
       config.availableAvatarStyles && config.availableAvatarStyles.length > 0
         ? config.availableAvatarStyles[0]
         : "micah";
+    this.avatarCustomizations = {};
   }
 
   get avatarUrl() {
-    return `https://api.dicebear.com/8.x/${
-      this.avatarStyle
-    }/svg?seed=${encodeURIComponent(this.id)}`;
+    const params = new URLSearchParams();
+    params.append('seed', this.id);
+    Object.entries(this.avatarCustomizations).forEach(([key, value]) => {
+      if (value) {
+        params.append(key, String(value));
+      }
+    });
+    const returnUrl = `https://api.dicebear.com/8.x/${this.avatarStyle}/svg?${params.toString()}`
+    console.log("returnUrl", returnUrl)
+    return returnUrl;
   }
 }
 
@@ -36,6 +44,28 @@ class Game {
     this.timers = new Map();
 
     this.addPlayer(hostId, hostName, socketId, true);
+  }
+
+  changeAvatar(playerId, style, parts) {
+    const player = this.players.get(playerId);
+    if(!player) {
+      throw new Error("Player not found.");
+    }
+
+    if (style && !config.availableAvatarStyles.includes(style)) {
+      throw new Error("Invalid avatar style.");
+    }
+
+    player.avatarStyle = style;
+    if (parts) {
+      player.avatarCustomizations = parts;
+    }
+
+    return {
+      broadcast: true,
+      event: "gameStateUpdate",
+      data: this.getClientState(),
+    };
   }
 
   generateCode() {
@@ -130,25 +160,6 @@ class Game {
       broadcast: true,
       event: "playerLeft",
       data: { playerId: playerToKickId, gameCode: this.code },
-    };
-  }
-
-  changeAvatarStyle(playerId, style) {
-    const player = this.players.get(playerId);
-    if (!player) {
-      throw new Error("Player not found.");
-    }
-
-    if (!config.availableAvatarStyles.includes(style)) {
-      throw new Error("Invalid avatar style.");
-    }
-
-    player.avatarStyle = style;
-
-    return {
-      broadcast: true,
-      event: "avatarStyleChanged",
-      data: { playerId, style, avatarUrl: player.avatarUrl },
     };
   }
 
@@ -304,8 +315,8 @@ class Game {
         return this.addBotPlayer(playerId);
       case "removePlayer":
         return this.removePlayer(playerId, data.playerId);
-      case "changeAvatarStyle":
-        return this.changeAvatarStyle(playerId, data.style);
+      case "changeAvatar":
+        return this.changeAvatar(playerId, data.style, data.parts);
       case "readyUp":
         return this.readyUp(playerId);
       default:

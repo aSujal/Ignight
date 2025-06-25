@@ -11,6 +11,7 @@ export interface Player {
   isConnected: boolean;
   avatarUrl: string;
   avatarStyle?: string;
+  avatarParts?: Record<string, string>;
   isBot?: boolean;
 }
 export interface GameState {
@@ -67,3 +68,18 @@ export type Clue = {
   clue: string;
 };
 
+export interface AvatarConfig {
+  style: string;
+  seed: string;
+  hair?: string[];
+  eyes?: string[];
+  mouth?: string[];
+  skinColor?: string[];
+  backgroundColor?: string[];
+}
+
+export interface AvatarPreferences {
+  style: string;
+  seed: string;
+  customizations: Record<string, string>;
+}

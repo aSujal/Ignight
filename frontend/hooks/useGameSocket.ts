@@ -201,13 +201,13 @@ export function useGameSocket() {
     });
   }, [socket, game?.code, persistentPlayerId]);
 
-  const updateAvatarStyle = useCallback(
-    (style: string) => {
+  const updateAvatar = useCallback(
+    (style?: string, parts?: Record<string, string>) => {
       socket.emit("gameAction", {
         roomCode: game?.code,
         playerId: persistentPlayerId,
-        action: "changeAvatarStyle",
-        data: { style },
+        action: "changeAvatar",
+        data: { style, parts },
       });
     },
     [socket, game?.code, persistentPlayerId]
@@ -245,5 +245,6 @@ export function useGameSocket() {
     // Player actions
     readyUp,
     addBotToGame,
+    updateAvatar,
   };
 }
