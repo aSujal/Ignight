@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import type { GameState } from "@/lib/types";
 import socket from "@/lib/socket";
 import { useRouter } from "next/navigation";
-import { usePersistentPlayerId } from "./useLocalStorage";
+import { usePersistentPlayerId, useLocalStorage } from "./useLocalStorage";
+const AVATAR_STORAGE_KEY = "ignight-avatar-preferences";
 
 export function useGameSocket() {
   const [persistentPlayerId] = usePersistentPlayerId();
@@ -13,6 +14,17 @@ export function useGameSocket() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+
+  const getAvatarPreferences = () => {
+    if (typeof window === "undefined") return null;
+    const stored = localStorage.getItem(AVATAR_STORAGE_KEY);
+    try {
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => {
     if (socket.connected) {
       console.log("Socket already connected");
@@ -67,7 +79,6 @@ export function useGameSocket() {
       setLoading(false);
     });
 
-
     socket.on("error", (errorMessage: string) => {
       setError(errorMessage);
       setLoading(false);
@@ -87,12 +98,17 @@ export function useGameSocket() {
 
   const createRoom = useCallback(
     (gameType: string, playerName: string) => {
+      const avatar = getAvatarPreferences();
       try {
         setLoading(true);
         socket.emit("createRoom", {
           gameType,
           playerName,
           playerId: persistentPlayerId,
+          avatar: {
+            style: avatar?.style,
+            customizations: avatar?.customizations,
+          },
         });
       } catch (error) {
         const errorMessage =
@@ -107,12 +123,17 @@ export function useGameSocket() {
 
   const joinRoom = useCallback(
     (roomCode: string, playerName: string) => {
+      const avatar = getAvatarPreferences();
       try {
         setLoading(true);
         socket.emit("joinRoom", {
           roomCode,
           playerName,
           playerId: persistentPlayerId,
+          avatar: {
+            style: avatar?.style,
+            customizations: avatar?.customizations,
+          },
         });
       } catch (error) {
         const errorMessage =
@@ -134,7 +155,7 @@ export function useGameSocket() {
   }, [socket, game?.code, persistentPlayerId]);
 
   const startRound = useCallback(() => {
-    console.log("game", game)
+    console.log("game", game);
     socket.emit("gameAction", {
       roomCode: game?.code,
       playerId: persistentPlayerId,
@@ -176,20 +197,36 @@ export function useGameSocket() {
 
   // Host actions
   const hostEndWordShow = useCallback(() => {
-    socket.emit("gameAction", { roomCode: game?.code, playerId: persistentPlayerId, action: "hostEndWordShow" });
+    socket.emit("gameAction", {
+      roomCode: game?.code,
+      playerId: persistentPlayerId,
+      action: "hostEndWordShow",
+    });
   }, [socket, game?.code, persistentPlayerId]);
 
   const hostEndDiscussion = useCallback(() => {
-    socket.emit("gameAction", { roomCode: game?.code, playerId: persistentPlayerId, action: "hostEndDiscussion" });
+    socket.emit("gameAction", {
+      roomCode: game?.code,
+      playerId: persistentPlayerId,
+      action: "hostEndDiscussion",
+    });
   }, [socket, game?.code, persistentPlayerId]);
 
   const hostEndVoting = useCallback(() => {
-    socket.emit("gameAction", { roomCode: game?.code, playerId: persistentPlayerId, action: "hostEndVoting" });
+    socket.emit("gameAction", {
+      roomCode: game?.code,
+      playerId: persistentPlayerId,
+      action: "hostEndVoting",
+    });
   }, [socket, game?.code, persistentPlayerId]);
 
   // Player actions
   const readyUp = useCallback(() => {
-    socket.emit("gameAction", { roomCode: game?.code, playerId: persistentPlayerId, action: "readyUp" });
+    socket.emit("gameAction", {
+      roomCode: game?.code,
+      playerId: persistentPlayerId,
+      action: "readyUp",
+    });
   }, [socket, game?.code, persistentPlayerId]);
 
   // New function to add a bot

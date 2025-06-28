@@ -1,69 +1,77 @@
-export type AvatarStyle =
-  | "micah"
-  | "adventurer"
-  | "shapes";
+import {
+  micah as micahStyle,
+  adventurer as adventurerStyle,
+  shapes as shapesStyle,
+} from "@dicebear/collection";
+
+export type AvatarStyle = "micah" | "adventurer" | "shapes";
+
+function extractOptions(styleSchema: any): Record<string, string[]> {
+  const opts: Record<string, string[]> = {};
+  Object.entries(styleSchema.properties).forEach(([key, s]: any) => {
+    if (s.enum) opts[key] = s.enum;
+    else if (s.items?.enum) opts[key] = s.items.enum;
+  });
+  return opts;
+}
+
+const micahColorOptions: Partial<Record<string, string[]>> = {
+  baseColor: ['FCD5CE', 'F8EDEB', 'D8E2DC', 'ECE4DB', 'FFE5B4'],
+  eyebrowsColor: ['5D3A00', '7A5230', '3E1F0D', '000000', 'B08968'],
+  eyesColor: ['3E3E3E', '1E2A38', '7D5A50', '354259', '6D6875'],
+  hairColor: ['000000', '5A3E36', 'D2B48C', 'B5651D', 'A0522D'],
+  shirtColor: ['FFD6A5', 'FDFFB6', 'CAFFBF', '9BF6FF', 'A0C4FF'],
+  backgroundColor: ['FFFFFF', 'F0F0F0', 'E0E0E0', 'D0D0D0', 'C0C0C0'],
+};
+
+const adventurerColorOptions: Partial<Record<string, string[]>> = {
+  skinColor: ['FCD5CE', 'F8EDEB', 'D8E2DC', 'ECE4DB', 'FFE5B4'],
+  hairColor: ['000000', '5A3E36', 'D2B48C', 'B5651D', 'A0522D'],
+  backgroundColor: ['FFFFFF', 'F0F0F0', 'E0E0E0', 'D0D0D0', 'C0C0C0'],
+};
+
+const shapesColorOptions: Partial<Record<string, string[]>> = {
+  backgroundColor: ['FFFFFF', 'F0F0F0', 'E0E0E0', 'D0D0D0', 'C0C0C0'],
+  shape1Color: ['FCD5CE', 'F8EDEB', 'D8E2DC', 'ECE4DB', 'FFE5B4'],
+  shape2Color: ['FCD5CE', 'F8EDEB', 'D8E2DC', 'ECE4DB', 'FFE5B4'],
+  shape3Color: ['FCD5CE', 'F8EDEB', 'D8E2DC', 'ECE4DB', 'FFE5B4'],
+};
 
 export const allAvatarOptions = {
-  micah: {
-    hair: [
-      "fonze",
-      "mrT",
-      "mrClean",
-      "turban",
-      "pixie",
-    ],
-    hairColor: [
-      "4a312c",
-      "77311d",
-      "a86450",
-      "b58143",
-      "c93305",
-      "e5d7a3",
-      "f59797",
-      "6b4423",
-    ],
-    eyebrows: ["up", "down", "eyelashesUp", "eyelashesDown", "concerned"],
-    eyes: ["eyes", "smiling", "round"],
-    mouth: ["smile", "smirk", "laughing", "pucker", "surprised"],
-    shirt: ["open", "crew", "collared"],
-    shirtColor: ["92876b", "65c9ff", "545454", "e6e6e6", "ff5722"],
-    skinColor: ["f2d5d5", "deb887", "a0522d", "8d5524", "6b4423"],
-    backgroundColor: ["b6e3f4", "f5f5f5", "ffd54f", "ffdfbf", "d1d4f9"],
-  },
-  adventurer: {
-    skinColor: ["f2d5d5", "deb887", "a0522d", "8d5524", "6b4423"],
-    hair: [
-      "short01",
-      "short02",
-      "short03",
-      "short04",
-      "short05",
-      "long01",
-      "long02",
-      "long03",
-    ],
-    hairColor: ["4a312c", "77311d", "a86450", "b58143", "f59797", "e5d7a3"],
-    eyes: [
-      "variant01",
-      "variant02",
-      "variant03",
-      "variant04",
-      "variant05",
-      "variant06",
-    ],
-    eyebrows: ["variant01", "variant02", "variant03", "variant04", "variant05"],
-    mouth: [
-      "variant01",
-      "variant02",
-      "variant03",
-      "variant04",
-      "variant05",
-      "variant06",
-    ],
-    backgroundColor: ["b6e3f4", "f5f5f5", "ffd54f", "ffdfbf", "d1d4f9"],
-  },
-  shapes: {
-    shapeColor: ["0a5b83", "1c799f", "69d2e7", "f1f4dc", "f88c4d"],
-    backgroundColor: ["b6e3f4", "f5f5f5", "ffd54f", "ffdfbf", "d1d4f9"],
-  },
+  micah: (() => {
+    const base = extractOptions(micahStyle.schema);
+    
+    const unwantedParts = ['base', 'earrings', 'facialHair', "glasses"];
+    for (const part of unwantedParts) delete base[part];
+
+    // Custom color parts
+    return {
+      ...base,
+      ...micahColorOptions,
+    };
+  })(),
+  adventurer: (() => {
+    const base = extractOptions(adventurerStyle.schema);
+    
+    const unwantedParts = ['base', 'earrings', 'facialHair', "glasses", "features"];
+    for (const part of unwantedParts) delete base[part];
+
+    // Custom color parts
+    return {
+      ...base,
+      ...adventurerColorOptions,
+    };
+  })(),
+  shapes: (() => {
+    const base = extractOptions(shapesStyle.schema);
+    
+    const unwantedParts = ['base', 'earrings', 'facialHair'];
+    for (const part of unwantedParts) delete base[part];
+
+    // Custom color parts
+    return {
+      ...base,
+      ...shapesColorOptions,
+    };
+  })(),
 };

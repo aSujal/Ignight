@@ -4,23 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import Image from "next/image";
-import { Badge } from "@/components/ui/badge";
-import { Shuffle, RotateCcw } from "lucide-react";
 import { useAvatarCustomization } from "@/hooks/useAvatarCustomization";
 import { allAvatarOptions } from "@/data/avatar";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Player } from "@/lib/types";
 import { AvatarStyle } from "@/data/avatar";
 import { PartCustomizer } from "./part-customizer";
+import { micah, adventurer, shapes } from "@dicebear/collection";
+import { createAvatar } from "@dicebear/core";
 
-interface AvatarCustomizerPropsGemini {
+const styleMap: Record<AvatarStyle, any> = { micah, adventurer, shapes };
+
+interface AvatarCustomizerProps {
   currentPlayer: Player;
   availableAvatarStyles: string[];
   onAvatarChange: (style: string, parts: Record<string, string>) => void;
@@ -30,13 +24,13 @@ export const AvatarCustomizer = ({
   currentPlayer,
   availableAvatarStyles,
   onAvatarChange,
-}: AvatarCustomizerPropsGemini) => {
+}: AvatarCustomizerProps) => {
   if (!currentPlayer || !currentPlayer.avatarStyle) return null;
-  console.log("currentPlayer", currentPlayer);
   const { preferences, generateAvatarUrl, updateStyle, updateCustomization } =
     useAvatarCustomization(currentPlayer.id, currentPlayer.avatarStyle);
 
   const handleStyleChange = (style: string) => {
+    console.log("handleStyleChange", style);
     updateStyle(style);
     onAvatarChange(style, {});
   };
@@ -52,6 +46,11 @@ export const AvatarCustomizer = ({
     seed: preferences.seed,
     customizations: preferences.customizations,
   });
+
+  const showDefaultStyle = (style: string) => {
+    const returnUrl = `https://api.dicebear.com/8.x/${style}/svg?seed=${preferences.seed}`;
+    return returnUrl;
+  };
 
   const styleCustomizations =
     allAvatarOptions[preferences.style as AvatarStyle] || null;
@@ -89,7 +88,7 @@ export const AvatarCustomizer = ({
               >
                 {
                   <Image
-                    src={generateAvatarUrl({ style, seed: preferences.seed })}
+                    src={showDefaultStyle(style)}
                     alt={style}
                     width={20}
                     height={20}
@@ -100,8 +99,8 @@ export const AvatarCustomizer = ({
             ))}
           </TabsContent>
           <TabsContent value="parts" className="mt-2">
-            <ScrollArea className="h-48">
-              <div className="space-y-1 pr-2">
+            <ScrollArea className="h-44">
+              <div className="pr-3">
                 {Object.keys(styleCustomizations).map((part) => (
                   <PartCustomizer
                     key={part}

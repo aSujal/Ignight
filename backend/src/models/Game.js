@@ -2,7 +2,7 @@ const { GAME_PHASES } = require("../config/enums");
 const config = require("../config/config"); // Import config
 
 class Player {
-  constructor(id, name, socketId, isHost = false) {
+  constructor(id, name, socketId, isHost = false, avatar = {}) {
     this.id = id;
     this.name = name;
     this.socketId = socketId;
@@ -10,11 +10,13 @@ class Player {
     this.isConnected = true;
     this.isReady = false;
     this.isBot = false;
-    this.avatarStyle =
-      config.availableAvatarStyles && config.availableAvatarStyles.length > 0
-        ? config.availableAvatarStyles[0]
-        : "micah";
-    this.avatarCustomizations = {};
+    this.avatarStyle = avatar?.style || (config.availableAvatarStyles?.[0] || 'micah');
+    this.avatarCustomizations = avatar?.customizations || {};
+  }
+
+  applyAvatarData(avatar) {
+    this.avatarStyle = avatar?.style || (config.availableAvatarStyles?.[0] || 'micah');
+    this.avatarCustomizations = avatar?.customizations || {};
   }
 
   get avatarUrl() {
@@ -26,7 +28,6 @@ class Player {
       }
     });
     const returnUrl = `https://api.dicebear.com/8.x/${this.avatarStyle}/svg?${params.toString()}`
-    console.log("returnUrl", returnUrl)
     return returnUrl;
   }
 }
@@ -72,7 +73,7 @@ class Game {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
   }
 
-  addPlayer(id, name, socketId, isHost = false) {
+  addPlayer(id, name, socketId, isHost = false, avatar = {}) {
     if (this.players.size >= config.maxPlayersPerGame) {
       throw new Error(
         `Game is full (max ${config.maxPlayersPerGame} players).`
@@ -81,7 +82,7 @@ class Game {
     if (this.players.has(id)) {
       throw new Error(`Player ${id} already exists in game ${this.code}.`);
     }
-    const player = new Player(id, name, socketId, isHost);
+    const player = new Player(id, name, socketId, isHost, avatar);
     this.players.set(id, player);
     return player;
   }
@@ -229,12 +230,13 @@ class Game {
     }
   }
 
-  reconnectPlayer(playerId, name, socketId) {
+  reconnectPlayer(playerId, name, socketId, avatar) {
     const player = this.players.get(playerId);
     if (player) {
       player.isConnected = true;
       player.socketId = socketId;
       player.name = name;
+      player.applyAvatarData(avatar);
     }
   }
 

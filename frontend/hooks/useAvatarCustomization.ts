@@ -37,18 +37,13 @@ export function useAvatarCustomization(playerId: string, style: string) {
     const generateAvatarUrl = useCallback((config?: Partial<AvatarPreferences>) => {
         const finalConfig = { ...preferences, ...config };
         const params = new URLSearchParams();
-      
         params.append('seed', finalConfig.seed);
-      
         Object.entries(finalConfig.customizations).forEach(([key, value]) => {
             if (value) {
-            params.append(key, value);
+                params.append(key, value);
             }
         });
-        console.log("params", params)
-        console.log("config", config)
-        const returnUrl = `https://api.dicebear.com/8.x/${finalConfig.style}/svg?${params.toString()}`
-        console.log("returnUrl", returnUrl)
+        const returnUrl = `https://api.dicebear.com/8.x/${finalConfig.style}/svg?${params.toString()}`;
         return returnUrl;
     }, [preferences]);
   

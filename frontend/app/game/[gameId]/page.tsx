@@ -10,7 +10,6 @@ import {
   useLocalStorage,
   usePersistentPlayerId,
 } from "@/hooks/useLocalStorage";
-import { Chat } from "@/components/chat";
 import { ConnectionStatus } from "@/components/connection-status";
 import { useGameSocket } from "@/hooks/useGameSocket";
 import { WordImpostorGame } from "@/components/game/word-impostor/WordImpostorGame";
@@ -52,8 +51,6 @@ export default function GamePage() {
       joinRoom(gameCode, storedUsername);
     }
   }, [gameCode, storedUsername, joinRoom]);
-
-  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const handleLeaveRoom = async () => {
     router.push("/");
@@ -118,7 +115,7 @@ export default function GamePage() {
 
   if (error && !game) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-background via-slate-900/50 to-background flex items-center justify-center">
         <div className="text-white text-center max-w-md">
           <AlertCircle className="w-16 h-16 mx-auto mb-4 text-red-400" />
           <h2 className="text-2xl font-bold mb-4">Unable to Join Game</h2>
@@ -157,7 +154,7 @@ export default function GamePage() {
 
   if (!game && !loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-background via-slate-900/50 to-background flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -233,14 +230,6 @@ export default function GamePage() {
           <AnimatePresence mode="wait">{renderGame(game)}</AnimatePresence>
         )}
       </div>
-      {game && (
-        <Chat
-          messages={[]}
-          onSendMessage={() => {}}
-          isOpen={isChatOpen}
-          onToggle={() => setIsChatOpen(!isChatOpen)}
-        />
-      )}
     </div>
   );
 }
