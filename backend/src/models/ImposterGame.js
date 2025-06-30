@@ -2,22 +2,25 @@
 const Game = require("./Game");
 const { GAME_PHASES } = require("../config/enums");
 const config = require("../config/config"); // Import config
-const IMPOSTER_GAME_WORD_SETS  = require("../data/imposterGameWordSets");
+const IMPOSTER_GAME_WORD_SETS = require("../data/imposterGameWordSets");
 
 const WORD_SETS = IMPOSTER_GAME_WORD_SETS;
+const { v4: uuidv4 } = require("uuid");
 
 class WordImpostorGame extends Game {
   constructor(hostId, hostName, socketId) {
     super(hostId, hostName, "word-impostor", socketId);
     this.currentWord = null;
     this.impostorId = null;
-    this.playerClues = new Map(); // Stores clues given in DISCUSSION phase
+    this.playerClues = new Map(); // Stores clues given in DISCUSSION phase // playerId -> clue[]
     this.votes = new Map();
     this.readyPlayers = new Set();
     this.discussionTimer = null;
     this.votingTimer = null;
     this.wordShowTimer = null; // Ensure wordShowTimer is initialized
     this.phaseStartTime = null;
+    this.clueTurnIndex = 0; // New: index of player whose turn it is to submit clue
+    this.turnOrder = []; // New: list of playerIds in turn order
     // Store configured durations in milliseconds
     this.phaseDurations = {
       [GAME_PHASES.DISCUSSION]: config.discussionDurationSeconds * 1000,
@@ -165,7 +168,7 @@ class WordImpostorGame extends Game {
   }
 
   startGame(playerId) {
-    console.log('startGame in imposterGame.js:',playerId);
+    console.log("startGame in imposterGame.js:", playerId);
     const player = this.players.get(playerId);
     if (!player?.isHost) throw new Error("Only host can start game");
     if (this.players.size < 3) throw new Error("Need at least 3 players");
@@ -177,7 +180,7 @@ class WordImpostorGame extends Game {
   }
 
   selectWordAndImpostor() {
-    console.log("WORD_SETS:",WORD_SETS);
+    console.log("WORD_SETS:", WORD_SETS);
     const wordSet = WORD_SETS[Math.floor(Math.random() * WORD_SETS.length)];
     this.currentWord = wordSet;
 
@@ -206,25 +209,31 @@ class WordImpostorGame extends Game {
     return data;
   }
 
-  submitClue(playerId, clue) {
+  submitClue(playerId, clueText) {
     if (this.phase !== GAME_PHASES.DISCUSSION) {
       throw new Error(
         `Cannot submit clue in phase: ${this.phase}. Must be in DISCUSSION phase.`
       );
     }
-    if (this.playerClues.has(playerId)) {
-      throw new Error(
-        `Player ${playerId} has already submitted a clue this round.`
-      );
+
+    if (!this.playerClues.has(playerId)) {
+      this.playerClues.set(playerId, []);
     }
 
-    this.playerClues.set(playerId, clue);
+    const clue = {
+      id: crypto.randomUUID?.() || Math.random().toString(36).substr(2, 9), // Unique ID
+      text: clueText,
+      timestamp: new Date().toISOString(), // Optional
+    };
+
+    this.playerClues.get(playerId).push(clue);
 
     const humanPlayersCount = Array.from(this.players.values()).filter(
       (p) => !p.isBot && p.isConnected
     ).length;
-    const humanCluesCount = Array.from(this.playerClues.keys()).filter(
-      (id) => !this.players.get(id)?.isBot
+
+    const humanCluesCount = Array.from(this.playerClues.entries()).filter(
+      ([id, clues]) => !this.players.get(id)?.isBot && clues.length > 0
     ).length;
 
     return {
@@ -233,7 +242,7 @@ class WordImpostorGame extends Game {
       data: {
         playerId,
         playerName: this.players.get(playerId)?.name || "Unknown Player",
-        clue,
+        clues: this.playerClues.get(playerId), // Now an array of IndividualClue
         allHumanCluesSubmitted: humanCluesCount === humanPlayersCount,
       },
     };
@@ -386,6 +395,7 @@ class WordImpostorGame extends Game {
     this.phase = GAME_PHASES.WORD_SHOW;
     this.selectWordAndImpostor();
     this.readyPlayers.clear();
+    this.clueTurnIndex = 0;
     this._clearAllTimers();
     this.phaseStartTime = Date.now();
     console.log(`Game ${this.code} transitioning to ${this.phase}`);
@@ -403,6 +413,7 @@ class WordImpostorGame extends Game {
     this.phase = GAME_PHASES.DISCUSSION;
     this.playerClues.clear();
     this.readyPlayers.clear();
+    this.clueTurnIndex = 0;
     this._clearAllTimers();
     this.phaseStartTime = Date.now();
     this.triggerBotActions();
@@ -487,7 +498,7 @@ class WordImpostorGame extends Game {
     if (this.phase !== GAME_PHASES.WORD_SHOW)
       throw new Error(`Cannot end discussion from phase: ${this.phase}`);
     console.log(`Host ${playerId} ending DISCUSSION phase.`);
-    this._clearAllTimers(); 
+    this._clearAllTimers();
     return this._transitionToDiscussion();
   }
 
@@ -497,7 +508,7 @@ class WordImpostorGame extends Game {
     if (this.phase !== GAME_PHASES.DISCUSSION)
       throw new Error(`Cannot end discussion from phase: ${this.phase}`);
     console.log(`Host ${playerId} ending DISCUSSION phase.`);
-    this._clearAllTimers(); 
+    this._clearAllTimers();
     return this._transitionToVoting();
   }
 
@@ -615,10 +626,10 @@ class WordImpostorGame extends Game {
       this.phase === GAME_PHASES.RESULTS
     ) {
       baseState.clues = Array.from(this.playerClues.entries()).map(
-        ([pId, clue]) => ({
+        ([pId, clues]) => ({
           playerId: pId,
           playerName: this.players.get(pId)?.name || "Unknown",
-          clue,
+          clues, // ✅ now already in the correct IndividualClue[] format
         })
       );
     }

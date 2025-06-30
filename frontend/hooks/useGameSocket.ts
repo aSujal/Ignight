@@ -18,6 +18,16 @@ export function useGameSocket() {
 
   const router = useRouter();
 
+  const emitGameAction = useCallback((action: string, data?: any) => {
+  socket.emit("gameAction", {
+    roomCode: game?.code,
+    playerId: persistentPlayerId,
+    action,
+    ...(data && { data }),
+  });
+}, [game?.code, persistentPlayerId]);
+
+
   useEffect(() => {
     if (socket.connected) {
       console.log("Socket already connected");
@@ -54,7 +64,6 @@ export function useGameSocket() {
 
     socket.on("roomCreated", (game: GameState) => {
       setGame(game);
-      setLoading(false);
       setError(null);
       setLoading(false);
       router.push(`/game/${game.code}`);
@@ -188,7 +197,6 @@ export function useGameSocket() {
       action: "resetGame",
     });
   }, [socket, game?.code, persistentPlayerId]);
-  console.log("gameo", game)
 
   // Host actions
   const hostEndWordShow = useCallback(() => {

@@ -23,6 +23,7 @@ export function DiscussionPhase({
   readyUp,
   hostEndDiscussion,
 }: DiscussionPhaseProps) {
+  console.log('game:',game);
   const [clue, setClue] = useState("");
   const [persistentPlayerId] = usePersistentPlayerId();
 
@@ -38,7 +39,7 @@ export function DiscussionPhase({
   const submittedClues = game.clues.filter((c) => c.playerId === persistentPlayerId);
   const canPlayerReady = submittedClues.length > 0 || isImpostor;
 
-  const handleSubmitClue = () => {
+  const handleSubmitClue = () => {  
     const trimmed = clue.trim();
     if (!trimmed) {
       toast.error("Clue cannot be empty");

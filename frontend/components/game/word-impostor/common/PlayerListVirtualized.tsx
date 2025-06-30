@@ -1,10 +1,9 @@
-// this component optimizes rendering of the player cards by not rendreing ones that are not visible ( pretty cool )
 'use client';
 
 import { FixedSizeGrid as Grid } from 'react-window';
 import AutoSizer from 'react-virtualized-auto-sizer';
 import PlayerClueList from './PlayerClueList';
-import { GameState } from '@/lib/types';
+import { GameState, PlayerClues } from '@/lib/types';
 
 interface PlayerListVirtualizedProps {
   game: GameState;
@@ -12,6 +11,7 @@ interface PlayerListVirtualizedProps {
 
 export default function PlayerListVirtualized({ game }: PlayerListVirtualizedProps) {
   const players = game.players;
+  const clues = game.clues;
   if (!players) return null;
 
   return (
@@ -41,11 +41,17 @@ export default function PlayerListVirtualized({ game }: PlayerListVirtualizedPro
                 if (index >= players.length) return null;
 
                 const player = players[index];
-                const clues = game.clues.filter((c) => c.playerId === player.id);
+                const clueData = clues.find(c => c.playerId === player.id);
+
+                const playerClues: PlayerClues = {
+                  playerId: player.id,
+                  playerName: player.name,
+                  clues: clueData?.clues ?? [],
+                };
 
                 return (
                   <div style={style} className="p-2">
-                    <PlayerClueList player={player} playerClues={clues} />
+                    <PlayerClueList playerClues={playerClues} player={player} />
                   </div>
                 );
               }}

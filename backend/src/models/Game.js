@@ -64,7 +64,8 @@ class Game {
         avatarStyle: p.avatarStyle // Include avatarStyle in player data
       })),
       maxPlayers: config.maxPlayersPerGame,
-      availableAvatarStyles: config.availableAvatarStyles // Add available styles to game state
+      availableAvatarStyles: config.availableAvatarStyles, // Add available styles to game state
+      currentTurnIndex: config.currentTurnIndex
     };
   }
 
