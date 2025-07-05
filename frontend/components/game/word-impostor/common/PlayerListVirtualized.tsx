@@ -51,7 +51,11 @@ export default function PlayerListVirtualized({ game }: PlayerListVirtualizedPro
 
                 return (
                   <div style={style} className="p-2">
-                    <PlayerClueList playerClues={playerClues} player={player} />
+                    <PlayerClueList
+                      playerClues={playerClues}
+                      player={player}
+                      highlight={game.currentTurnPlayerId === player.id} // highlight if it's their turn
+                    />
                   </div>
                 );
               }}

@@ -216,6 +216,15 @@ class WordImpostorGame extends Game {
       );
     }
 
+    // Only allow if it's this player's turn
+    if (
+      this.phase === GAME_PHASES.DISCUSSION &&
+      this.turnOrder &&
+      this.turnOrder[this.clueTurnIndex] !== playerId
+    ) {
+      throw new Error("It's not your turn to submit a clue.");
+    }
+
     if (!this.playerClues.has(playerId)) {
       this.playerClues.set(playerId, []);
     }
@@ -236,14 +245,21 @@ class WordImpostorGame extends Game {
       ([id, clues]) => !this.players.get(id)?.isBot && clues.length > 0
     ).length;
 
+    // Advance turn
+    if (this.turnOrder) {
+      this.clueTurnIndex = (this.clueTurnIndex + 1) % this.turnOrder.length;
+    }
+
     return {
       broadcast: true,
       event: "clueSubmitted",
       data: {
         playerId,
         playerName: this.players.get(playerId)?.name || "Unknown Player",
-        clues: this.playerClues.get(playerId), // Now an array of IndividualClue
-        allHumanCluesSubmitted: humanCluesCount === humanPlayersCount,
+        clues: this.playerClues.get(playerId),
+        allHumanCluesSubmitted: false, // update as needed
+        currentTurnPlayerId: this.turnOrder[this.clueTurnIndex],
+        turnOrder: this.turnOrder,
       },
     };
   }
@@ -413,6 +429,10 @@ class WordImpostorGame extends Game {
     this.phase = GAME_PHASES.DISCUSSION;
     this.playerClues.clear();
     this.readyPlayers.clear();
+    // Set up turn order and index
+    this.turnOrder = Array.from(this.players.values())
+      .filter((p) => !p.isBot && p.isConnected && !p.isEliminated)
+      .map((p) => p.id);
     this.clueTurnIndex = 0;
     this._clearAllTimers();
     this.phaseStartTime = Date.now();
@@ -629,7 +649,7 @@ class WordImpostorGame extends Game {
         ([pId, clues]) => ({
           playerId: pId,
           playerName: this.players.get(pId)?.name || "Unknown",
-          clues, // ✅ now already in the correct IndividualClue[] format
+          clues,
         })
       );
     }
@@ -645,6 +665,13 @@ class WordImpostorGame extends Game {
     } else {
       // Set to false or null if roles aren't assigned or playerId is null (e.g. for a general game observer if that were a feature)
       baseState.isImpostor = false;
+    }
+
+    if (this.phase === GAME_PHASES.DISCUSSION) {
+      baseState.turnOrder = this.turnOrder;
+      baseState.currentTurnPlayerId = this.turnOrder
+        ? this.turnOrder[this.clueTurnIndex]
+        : null;
     }
 
     return baseState;

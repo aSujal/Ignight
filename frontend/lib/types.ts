@@ -39,6 +39,7 @@ export interface GameState {
   availableAvatarStyles?: string[];
   isImpostor?: boolean;
   timerRemaining?: number;
+  currentTurnPlayerId: string;
 }
 
 export type SenderType = "player" | "server";

@@ -39,6 +39,10 @@ export function DiscussionPhase({
   const submittedClues = game.clues.filter((c) => c.playerId === persistentPlayerId);
   const canPlayerReady = submittedClues.length > 0 || isImpostor;
 
+  // Turn-based clue logic
+  const isMyTurn =
+    game.currentTurnPlayerId === persistentPlayerId;
+
   const handleSubmitClue = () => {  
     const trimmed = clue.trim();
     if (!trimmed) {
@@ -63,7 +67,7 @@ export function DiscussionPhase({
       <div className="w-full flex flex-col items-center justify-center px-4 py-6">
         <Card className="w-full max-w-7xl bg-card/90 backdrop-blur-lg border border-border shadow-xl rounded-2xl">
           <CardHeader className="text-center border-b border-border/50 pb-4 pt-6">
-            <CardTitle className="text-4xl font-extrabold text-primary-foreground tracking-tight">
+            <CardTitle className="text-4xl font-extrabold text-primary background tracking-tight">
               Discussion
             </CardTitle>
             <div className="mt-3 text-base sm:text-lg text-accent-foreground font-mono tabular-nums">
@@ -89,18 +93,40 @@ export function DiscussionPhase({
 
             {game.players.length > 0 && <PlayerListVirtualized game={game} />}
 
+            {/* Turn indicator */}
+            {game.currentTurnPlayerId && (
+              <div className="text-center mb-2">
+                {isMyTurn ? (
+                  <span className="text-green-600 font-bold text-lg">
+                    Your turn to submit a clue!
+                  </span>
+                ) : (
+                  <span className="text-yellow-600 font-medium text-lg">
+                    Waiting for{" "}
+                    {
+                      game.players.find((p) => p.id === game.currentTurnPlayerId)
+                        ?.name
+                    }
+                    's clue...
+                  </span>
+                )}
+              </div>
+            )}
+
             <div className="flex flex-col sm:flex-row gap-3 p-3 bg-muted/20 rounded-xl shadow">
               <Input
                 placeholder="Enter your one-word clue..."
                 value={clue}
                 onChange={(e) => setClue(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleSubmitClue()}
+                onKeyDown={(e) => e.key === "Enter" && isMyTurn && handleSubmitClue()}
                 className="flex-grow p-4 h-auto text-base rounded-md"
-                />
+                disabled={!isMyTurn}
+              />
               <Button
                 onClick={handleSubmitClue}
                 className="px-6 py-3 text-base rounded-md shadow-md h-auto w-full sm:w-auto"
-                >
+                disabled={!isMyTurn}
+              >
                 Submit
               </Button>
             </div>
