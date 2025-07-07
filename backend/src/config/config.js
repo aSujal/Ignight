@@ -19,8 +19,7 @@ const config = {
     },
   },
   availableAvatarStyles: [
-    'micah', 'adventurer', 'fun-emoji', 'identicon', 'pixel-art',
-    'initials', 'lorelei', 'notionists', 'shapes', 'thumbs'
+    'micah', 'adventurer', 'shapes'
   ], // Added list of styles
 };
 

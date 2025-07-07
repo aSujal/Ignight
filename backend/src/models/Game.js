@@ -2,7 +2,7 @@ const { GAME_PHASES } = require("../config/enums");
 const config = require("../config/config"); // Import config
 
 class Player {
-  constructor(id, name, socketId, isHost = false) {
+  constructor(id, name, socketId, isHost = false, avatar = {}) {
     this.id = id;
     this.name = name;
     this.socketId = socketId;
@@ -10,16 +10,25 @@ class Player {
     this.isConnected = true;
     this.isReady = false;
     this.isBot = false;
-    this.avatarStyle =
-      config.availableAvatarStyles && config.availableAvatarStyles.length > 0
-        ? config.availableAvatarStyles[0]
-        : "micah";
+    this.avatarStyle = avatar?.style || (config.availableAvatarStyles?.[0] || 'micah');
+    this.avatarCustomizations = avatar?.customizations || {};
+  }
+
+  applyAvatarData(avatar) {
+    this.avatarStyle = avatar?.style || (config.availableAvatarStyles?.[0] || 'micah');
+    this.avatarCustomizations = avatar?.customizations || {};
   }
 
   get avatarUrl() {
-    return `https://api.dicebear.com/8.x/${
-      this.avatarStyle
-    }/svg?seed=${encodeURIComponent(this.id)}`;
+    const params = new URLSearchParams();
+    params.append('seed', this.id);
+    Object.entries(this.avatarCustomizations).forEach(([key, value]) => {
+      if (value) {
+        params.append(key, String(value));
+      }
+    });
+    const returnUrl = `https://api.dicebear.com/8.x/${this.avatarStyle}/svg?${params.toString()}`
+    return returnUrl;
   }
 }
 
@@ -38,11 +47,33 @@ class Game {
     this.addPlayer(hostId, hostName, socketId, true);
   }
 
+  changeAvatar(playerId, style, parts) {
+    const player = this.players.get(playerId);
+    if(!player) {
+      throw new Error("Player not found.");
+    }
+
+    if (style && !config.availableAvatarStyles.includes(style)) {
+      throw new Error("Invalid avatar style.");
+    }
+
+    player.avatarStyle = style;
+    if (parts) {
+      player.avatarCustomizations = parts;
+    }
+
+    return {
+      broadcast: true,
+      event: "gameStateUpdate",
+      data: this.getClientState(),
+    };
+  }
+
   generateCode() {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
   }
 
-  addPlayer(id, name, socketId, isHost = false) {
+  addPlayer(id, name, socketId, isHost = false, avatar = {}) {
     if (this.players.size >= config.maxPlayersPerGame) {
       throw new Error(
         `Game is full (max ${config.maxPlayersPerGame} players).`
@@ -51,7 +82,7 @@ class Game {
     if (this.players.has(id)) {
       throw new Error(`Player ${id} already exists in game ${this.code}.`);
     }
-    const player = new Player(id, name, socketId, isHost);
+    const player = new Player(id, name, socketId, isHost, avatar);
     this.players.set(id, player);
     return player;
   }
@@ -103,22 +134,92 @@ class Game {
     this.readyPlayers.add(newBot.id);
 
     return {
-      code: this.code,
-      type: this.type,
-      phase: this.phase,
-      host: this.host,
-      players: Array.from(this.players.values()).map(p => ({
-        id: p.id,
-        name: p.name,
-        isHost: p.isHost,
-        isConnected: p.isConnected,
-        isReady: p.isReady,
-        avatarUrl: p.avatarUrl, // This will now call the getter
-        avatarStyle: p.avatarStyle // Include avatarStyle in player data
-      })),
-      maxPlayers: config.maxPlayersPerGame,
-      availableAvatarStyles: config.availableAvatarStyles, // Add available styles to game state
-      currentTurnIndex: config.currentTurnIndex
+      broadcast: true,
+      event: "playerJoined",
+      data: { newPlayer: newBot, gameCode: this.code },
+    };
+  }
+
+  removePlayer(actingPlayerId, playerToKickId) {
+    const actor = this.players.get(actingPlayerId);
+    if (!actor || !actor.isHost) {
+      throw new Error("Only the host can remove players.");
+    }
+
+    const playerToKick = this.players.get(playerToKickId);
+    if (!playerToKick) {
+      throw new Error("Player to kick not found.");
+    }
+
+    this.players.delete(playerToKickId);
+    this.readyPlayers.delete(playerToKickId);
+    console.log(
+      `Player ${playerToKickId} (Name: ${playerToKick.name}) removed from game ${this.code}. Total players: ${this.players.size}`
+    );
+
+    return {
+      broadcast: true,
+      event: "playerLeft",
+      data: { playerId: playerToKickId, gameCode: this.code },
+    };
+  }
+
+  clearReadyPlayersExceptBots() {
+    this.readyPlayers.forEach((playerId) => {
+      const player = this.players.get(playerId);
+      if (!player.isBot) {
+        this.readyPlayers.delete(playerId);
+      }
+    });
+  }
+
+  readyUp(playerId) {
+    const player = this.players.get(playerId);
+    if (!player) throw new Error("Player not found.");
+
+    if (this.readyPlayers.has(playerId)) {
+      console.log(
+        `Player ${playerId} has already readied up in phase ${this.phase}.`
+      );
+      return { broadcast: false };
+    }
+
+    player.isReady = true;
+    this.readyPlayers.add(playerId);
+
+    console.log(
+      `Player ${playerId} readied up in phase ${this.phase}. Ready players: ${this.readyPlayers.size}`
+    );
+
+    const humanPlayers = Array.from(this.players.values()).filter(
+      (p) => !p.isBot && p.isConnected
+    );
+    const allReady = this.readyPlayers.size >= humanPlayers.length;
+
+    if (allReady) {
+      this.players.forEach(player => {
+        if (!player.isBot) {
+          player.isReady = false;
+        }
+      });
+      this.clearReadyPlayersExceptBots();
+      this._handleAllPlayersReady();
+      console.log(
+        `All ${humanPlayers.length} human players readied up. Ending phase ${this.phase} early.`
+      );
+    }
+
+    return {
+      broadcast: true,
+      event: "playerReadiedUp",
+      data: {
+        playerId,
+        isReady: player.isReady,
+        readyCount: this.readyPlayers.size,
+        totalHumanPlayers: humanPlayers.length,
+        phase: this.phase,
+        allReady,
+      },
     };
   }
 
@@ -129,12 +230,13 @@ class Game {
     }
   }
 
-  reconnectPlayer(playerId, name, socketId) {
+  reconnectPlayer(playerId, name, socketId, avatar) {
     const player = this.players.get(playerId);
     if (player) {
       player.isConnected = true;
       player.socketId = socketId;
       player.name = name;
+      player.applyAvatarData(avatar);
     }
   }
 
@@ -215,8 +317,8 @@ class Game {
         return this.addBotPlayer(playerId);
       case "removePlayer":
         return this.removePlayer(playerId, data.playerId);
-      case "changeAvatarStyle":
-        return this.changeAvatarStyle(playerId, data.style);
+      case "changeAvatar":
+        return this.changeAvatar(playerId, data.style, data.parts);
       case "readyUp":
         return this.readyUp(playerId);
       default:

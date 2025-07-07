@@ -8,7 +8,7 @@ class GameService {
     this.playerSockets = new Map();
   }
 
-  createGame(hostId, hostName, gameType, socketId, numBots = 0) {
+  createGame(hostId, hostName, gameType, socketId, avatar, numBots = 0) {
     if (!hostName || !gameType) {
       throw new Error("Player name and game type are required.");
     }
@@ -24,7 +24,8 @@ class GameService {
         game = new Game(hostId, hostName, gameType, socketId);
         break;
     }
-
+    
+    game.players.get(hostId).applyAvatarData(avatar);
     this.games.set(game.code, game);
     this.playerSockets.set(hostId, socketId);
 
@@ -33,7 +34,7 @@ class GameService {
     return game;
   }
 
-  joinGame(roomCode, playerId, playerName, socketId) {
+  joinGame(roomCode, playerId, playerName, socketId, avatar) {
     if (!playerName || !roomCode || !playerId) {
       throw new Error("Player name, room code, and player ID are required.");
     }
@@ -46,7 +47,7 @@ class GameService {
     let player = game.players.get(playerId);
 
     if (player) {
-      game.reconnectPlayer(playerId, playerName, socketId);
+      game.reconnectPlayer(playerId, playerName, socketId, avatar);
     } else {
       if (game.phase !== "waiting") {
         throw new Error("Game already in progress");
@@ -55,7 +56,7 @@ class GameService {
       if (game.players.size >= config.maxPlayersPerGame) {
         throw new Error("Game is full");
       }
-      player = game.addPlayer(playerId, playerName, socketId, false);
+      player = game.addPlayer(playerId, playerName, socketId, false, avatar);
     }
 
     this.playerSockets.set(playerId, socketId);

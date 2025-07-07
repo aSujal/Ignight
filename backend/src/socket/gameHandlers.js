@@ -4,13 +4,14 @@ const { v4: uuidv4 } = require("uuid");
 const { sendServerMessage } = require("./utils/sendServerMessage");
 
 
-function handleCreateRoom(socket, io, { gameType, playerName, playerId }) {
+function handleCreateRoom(socket, io, { gameType, playerName, playerId, avatar }) {
   try {
     const game = gameService.createGame(
       playerId,
       playerName,
       gameType,
-      socket.id
+      socket.id,
+      avatar
     );
     socket.join(game.code);
     socket.emit("roomCreated", game.getClientState(playerId));
@@ -22,13 +23,14 @@ function handleCreateRoom(socket, io, { gameType, playerName, playerId }) {
   }
 }
 
-function handleJoinRoom(socket, io, { roomCode, playerName, playerId }) {
+function handleJoinRoom(socket, io, { roomCode, playerName, playerId, avatar }) {
   try {
     const { game } = gameService.joinGame(
       roomCode,
       playerId,
       playerName,
-      socket.id
+      socket.id,
+      avatar
     );
     socket.join(game.code);
     const gameReturn = game.getClientState(playerId);
