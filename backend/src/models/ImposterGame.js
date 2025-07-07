@@ -2,29 +2,10 @@
 const Game = require("./Game");
 const { GAME_PHASES } = require("../config/enums");
 const config = require("../config/config"); // Import config
+const IMPOSTER_GAME_WORD_SETS = require("../data/imposterGameWordSets");
 
-const WORD_SETS = [
-  { word: "PIZZA", hint: "Food" },
-  { word: "OCEAN", hint: "Water" },
-  { word: "GUITAR", hint: "Music" },
-  { word: "BUTTERFLY", hint: "Insect" },
-  { word: "CASTLE", hint: "Building" },
-  { word: "RAINBOW", hint: "Colors" },
-  { word: "TELESCOPE", hint: "Science" },
-  { word: "VOLCANO", hint: "Mountain" },
-  { word: "LIBRARY", hint: "Books" },
-  { word: "DIAMOND", hint: "Gem" },
-  { word: "SANDWICH", hint: "Food" },
-  { word: "HELICOPTER", hint: "Vehicle" },
-  { word: "PENGUIN", hint: "Animal" },
-  { word: "KEYBOARD", hint: "Computer" },
-  { word: "SUNFLOWER", hint: "Plant" },
-  { word: "MOTORCYCLE", hint: "Vehicle" },
-  { word: "AQUARIUM", hint: "Fish" },
-  { word: "CACTUS", hint: "Plant" },
-  { word: "LIGHTHOUSE", hint: "Building" },
-  { word: "PARACHUTE", hint: "Sky" },
-];
+const WORD_SETS = IMPOSTER_GAME_WORD_SETS;
+const { v4: uuidv4 } = require("uuid");
 
 class WordImpostorGame extends Game {
   constructor(hostId, hostName, socketId) {
@@ -32,10 +13,16 @@ class WordImpostorGame extends Game {
 
     this.currentWord = null;
     this.impostorId = null;
-    this.playerClues = new Map(); // Stores clues given in DISCUSSION phase
+    this.playerClues = new Map(); // Stores clues given in DISCUSSION phase // playerId -> clue[]
     this.votes = new Map();
-
-    // Phase durations (in milliseconds)
+    this.readyPlayers = new Set();
+    this.discussionTimer = null;
+    this.votingTimer = null;
+    this.wordShowTimer = null; // Ensure wordShowTimer is initialized
+    this.phaseStartTime = null;
+    this.clueTurnIndex = 0; // New: index of player whose turn it is to submit clue
+    this.turnOrder = []; // New: list of playerIds in turn order
+    // Store configured durations in milliseconds
     this.phaseDurations = {
       [GAME_PHASES.DISCUSSION]: config.discussionDurationSeconds * 1000,
       [GAME_PHASES.VOTING]: config.votingDurationSeconds * 1000,
@@ -86,6 +73,7 @@ class WordImpostorGame extends Game {
   }
 
   startGame(playerId) {
+    console.log("startGame in imposterGame.js:", playerId);
     const player = this.players.get(playerId);
     if (!player?.isHost) throw new Error("Only host can start game");
     if (this.players.size < 3) throw new Error("Need at least 3 players");
@@ -96,6 +84,7 @@ class WordImpostorGame extends Game {
   }
 
   selectWordAndImpostor() {
+    console.log("WORD_SETS:", WORD_SETS);
     const wordSet = WORD_SETS[Math.floor(Math.random() * WORD_SETS.length)];
     this.currentWord = wordSet;
 
@@ -110,26 +99,58 @@ class WordImpostorGame extends Game {
     );
   }
 
-  submitClue(playerId, clue) {
+  getGameStartData() {
+    const data = {};
+    for (const [playerId] of this.players) {
+      data[playerId] = {
+        word: playerId === this.impostorId ? "Imposter" : this.currentWord.word,
+        hint: this.currentWord.hint,
+        isImpostor: playerId === this.impostorId,
+      };
+    }
+    return data;
+  }
+
+  submitClue(playerId, clueText) {
     if (this.phase !== GAME_PHASES.DISCUSSION) {
       throw new Error(
         `Cannot submit clue in phase: ${this.phase}. Must be in DISCUSSION phase.`
       );
     }
-    if (this.playerClues.has(playerId)) {
-      throw new Error(
-        `Player ${playerId} has already submitted a clue this round.`
-      );
+
+    // Only allow if it's this player's turn
+    if (
+      this.phase === GAME_PHASES.DISCUSSION &&
+      this.turnOrder &&
+      this.turnOrder[this.clueTurnIndex] !== playerId
+    ) {
+      throw new Error("It's not your turn to submit a clue.");
     }
 
-    this.playerClues.set(playerId, clue);
+    if (!this.playerClues.has(playerId)) {
+      this.playerClues.set(playerId, []);
+    }
+
+    const clue = {
+      id: crypto.randomUUID?.() || Math.random().toString(36).substr(2, 9), // Unique ID
+      text: clueText,
+      timestamp: new Date().toISOString(), // Optional
+    };
+
+    this.playerClues.get(playerId).push(clue);
 
     const humanPlayersCount = Array.from(this.players.values()).filter(
       (p) => !p.isBot && p.isConnected
     ).length;
-    const humanCluesCount = Array.from(this.playerClues.keys()).filter(
-      (id) => !this.players.get(id)?.isBot
+
+    const humanCluesCount = Array.from(this.playerClues.entries()).filter(
+      ([id, clues]) => !this.players.get(id)?.isBot && clues.length > 0
     ).length;
+
+    // Advance turn
+    if (this.turnOrder) {
+      this.clueTurnIndex = (this.clueTurnIndex + 1) % this.turnOrder.length;
+    }
 
     return {
       broadcast: true,
@@ -137,8 +158,10 @@ class WordImpostorGame extends Game {
       data: {
         playerId,
         playerName: this.players.get(playerId)?.name || "Unknown Player",
-        clue,
-        allHumanCluesSubmitted: humanCluesCount === humanPlayersCount,
+        clues: this.playerClues.get(playerId),
+        allHumanCluesSubmitted: false, // update as needed
+        currentTurnPlayerId: this.turnOrder[this.clueTurnIndex],
+        turnOrder: this.turnOrder,
       },
     };
   }
@@ -259,7 +282,11 @@ class WordImpostorGame extends Game {
     }
     this._setPhase(GAME_PHASES.WORD_SHOW);
     this.selectWordAndImpostor();
-    console.log(this.players)
+    this.readyPlayers.clear();
+    this.clueTurnIndex = 0;
+    this._clearAllTimers();
+    this.phaseStartTime = Date.now();
+    console.log(`Game ${this.code} transitioning to ${this.phase}`);
     return {
       broadcast: true,
       event: "phaseChanged",
@@ -273,6 +300,14 @@ class WordImpostorGame extends Game {
   _transitionToDiscussion() {
     this._setPhase(GAME_PHASES.DISCUSSION);
     this.playerClues.clear();
+    this.readyPlayers.clear();
+    // Set up turn order and index
+    this.turnOrder = Array.from(this.players.values())
+      .filter((p) => !p.isBot && p.isConnected && !p.isEliminated)
+      .map((p) => p.id);
+    this.clueTurnIndex = 0;
+    this._clearAllTimers();
+    this.phaseStartTime = Date.now();
     this.triggerBotActions();
     this._startTimer(
       "discussion",
@@ -354,10 +389,19 @@ class WordImpostorGame extends Game {
     if (this.phase !== GAME_PHASES.WORD_SHOW)
       throw new Error(`Cannot end discussion from phase: ${this.phase}`);
     console.log(`Host ${playerId} ending DISCUSSION phase.`);
-    this._clearAllTimers(); 
+    this._clearAllTimers();
     return this._transitionToDiscussion();
   }
 
+  hostEndDiscussion(playerId) {
+    if (!this.players.get(playerId)?.isHost)
+      throw new Error("Only host can end discussion.");
+    if (this.phase !== GAME_PHASES.DISCUSSION)
+      throw new Error(`Cannot end discussion from phase: ${this.phase}`);
+    console.log(`Host ${playerId} ending DISCUSSION phase.`);
+    this._clearAllTimers();
+    return this._transitionToVoting();
+  }
 
   resetGame(playerId) {
     const player = this.players.get(playerId);
@@ -376,7 +420,43 @@ class WordImpostorGame extends Game {
         isImpostor: playerId === this.impostorId,
       };
     }
-    return data;
+
+    // During DISCUSSION and VOTING (and RESULTS), clues are visible
+    if (
+      this.phase === GAME_PHASES.DISCUSSION ||
+      this.phase === GAME_PHASES.VOTING ||
+      this.phase === GAME_PHASES.RESULTS
+    ) {
+      baseState.clues = Array.from(this.playerClues.entries()).map(
+        ([pId, clues]) => ({
+          playerId: pId,
+          playerName: this.players.get(pId)?.name || "Unknown",
+          clues,
+        })
+      );
+    }
+
+    if (this.phase === GAME_PHASES.RESULTS) {
+      baseState.results = this.getResults();
+      baseState.votes = this.getVoteDetails(); // Send detailed votes
+    }
+
+    // Add isImpostor status for the requesting player if roles are assigned
+    if (this.impostorId && playerId) {
+      baseState.isImpostor = playerId === this.impostorId;
+    } else {
+      // Set to false or null if roles aren't assigned or playerId is null (e.g. for a general game observer if that were a feature)
+      baseState.isImpostor = false;
+    }
+
+    if (this.phase === GAME_PHASES.DISCUSSION) {
+      baseState.turnOrder = this.turnOrder;
+      baseState.currentTurnPlayerId = this.turnOrder
+        ? this.turnOrder[this.clueTurnIndex]
+        : null;
+    }
+
+    return baseState;
   }
 
   getVoteDetails() {

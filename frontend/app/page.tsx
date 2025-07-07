@@ -63,7 +63,7 @@ export default function HomePage() {
           transition={{ duration: 0.8 }}
           className="text-center mb-12"
         >
-          <h1 className="text-6xl font-bold bg-gradient-to-r from-white via-purple-200 to-cyan-200 bg-clip-text text-transparent mb-4">
+          <h1 className=" text-6xl font-bold bg-gradient-to-r from-white via-purple-200 to-cyan-200 bg-clip-text text-transparent mb-6 h-16">
             Ignight
           </h1>
           <p className="text-xl text-gray-300 max-w-2xl mx-auto">

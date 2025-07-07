@@ -25,36 +25,32 @@ export interface GameState {
     hint: string;
     isImpostor: boolean;
   };
-  clues: {
-    playerId: string;
-    playerName: string;
-    clue: string;
-  }[];
+  clues: PlayerClues[];
   results: {
     impostorId: string;
     mostVotedId: string;
     impostorCaught: boolean;
     votes: Vote[];
   };
-  /**
-   * A mapping of player IDs to the IDs of the players they voted for.
-   */
   votes: Vote[];
   readyPlayers: string[];
   maxPlayers: number;
   availableAvatarStyles?: string[];
   isImpostor?: boolean;
   timerRemaining?: number;
-  timerDuration?: number;
+  currentTurnPlayerId: string;
 }
+
+export type SenderType = "player" | "server";
 
 export interface ChatMessage {
   id: string;
-  playerId: string;
-  playerName: string;
+  senderType: SenderType;
+  playerId?: string;
+  playerName?: string;
   message: string;
   timestamp: Date;
-  type: typeof GAME_PHASES;
+  type: (typeof GAME_PHASES)[keyof typeof GAME_PHASES] | "SYSTEM"; // SYSTEM for server messages
 }
 
 export type Vote = {
@@ -62,8 +58,14 @@ export type Vote = {
   votedForPlayerId: string;
 };
 
-export type Clue = {
-  playerId: string;
-  clue: string;
+export type IndividualClue = {
+  id: string; // optional but good for keying in UI
+  text: string;
+  timestamp?: Date;
 };
 
+export type PlayerClues = {
+  playerId: string;
+  playerName: string;
+  clues: IndividualClue[];
+};

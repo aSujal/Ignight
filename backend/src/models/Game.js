@@ -103,111 +103,22 @@ class Game {
     this.readyPlayers.add(newBot.id);
 
     return {
-      broadcast: true,
-      event: "playerJoined",
-      data: { newPlayer: newBot, gameCode: this.code },
-    };
-  }
-
-  removePlayer(actingPlayerId, playerToKickId) {
-    const actor = this.players.get(actingPlayerId);
-    if (!actor || !actor.isHost) {
-      throw new Error("Only the host can remove players.");
-    }
-
-    const playerToKick = this.players.get(playerToKickId);
-    if (!playerToKick) {
-      throw new Error("Player to kick not found.");
-    }
-
-    this.players.delete(playerToKickId);
-    this.readyPlayers.delete(playerToKickId);
-    console.log(
-      `Player ${playerToKickId} (Name: ${playerToKick.name}) removed from game ${this.code}. Total players: ${this.players.size}`
-    );
-
-    return {
-      broadcast: true,
-      event: "playerLeft",
-      data: { playerId: playerToKickId, gameCode: this.code },
-    };
-  }
-
-  changeAvatarStyle(playerId, style) {
-    const player = this.players.get(playerId);
-    if (!player) {
-      throw new Error("Player not found.");
-    }
-
-    if (!config.availableAvatarStyles.includes(style)) {
-      throw new Error("Invalid avatar style.");
-    }
-
-    player.avatarStyle = style;
-
-    return {
-      broadcast: true,
-      event: "avatarStyleChanged",
-      data: { playerId, style, avatarUrl: player.avatarUrl },
-    };
-  }
-
-  clearReadyPlayersExceptBots() {
-    this.readyPlayers.forEach((playerId) => {
-      const player = this.players.get(playerId);
-      if (!player.isBot) {
-        this.readyPlayers.delete(playerId);
-      }
-    });
-  }
-
-  readyUp(playerId) {
-    const player = this.players.get(playerId);
-    if (!player) throw new Error("Player not found.");
-
-    if (this.readyPlayers.has(playerId)) {
-      console.log(
-        `Player ${playerId} has already readied up in phase ${this.phase}.`
-      );
-      return { broadcast: false };
-    }
-
-    player.isReady = true;
-    this.readyPlayers.add(playerId);
-
-    console.log(
-      `Player ${playerId} readied up in phase ${this.phase}. Ready players: ${this.readyPlayers.size}`
-    );
-
-    const humanPlayers = Array.from(this.players.values()).filter(
-      (p) => !p.isBot && p.isConnected
-    );
-    const allReady = this.readyPlayers.size >= humanPlayers.length;
-
-    if (allReady) {
-      this.players.forEach(player => {
-        if (!player.isBot) {
-          player.isReady = false;
-        }
-      });
-      this.clearReadyPlayersExceptBots();
-      this._handleAllPlayersReady();
-      console.log(
-        `All ${humanPlayers.length} human players readied up. Ending phase ${this.phase} early.`
-      );
-    }
-
-    return {
-      broadcast: true,
-      event: "playerReadiedUp",
-      data: {
-        playerId,
-        isReady: player.isReady,
-        readyCount: this.readyPlayers.size,
-        totalHumanPlayers: humanPlayers.length,
-        phase: this.phase,
-        allReady,
-      },
+      code: this.code,
+      type: this.type,
+      phase: this.phase,
+      host: this.host,
+      players: Array.from(this.players.values()).map(p => ({
+        id: p.id,
+        name: p.name,
+        isHost: p.isHost,
+        isConnected: p.isConnected,
+        isReady: p.isReady,
+        avatarUrl: p.avatarUrl, // This will now call the getter
+        avatarStyle: p.avatarStyle // Include avatarStyle in player data
+      })),
+      maxPlayers: config.maxPlayersPerGame,
+      availableAvatarStyles: config.availableAvatarStyles, // Add available styles to game state
+      currentTurnIndex: config.currentTurnIndex
     };
   }
 

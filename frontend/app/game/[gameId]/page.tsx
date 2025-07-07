@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, AlertCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, AlertCircle } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import {
   useLocalStorage,
@@ -44,6 +44,8 @@ export default function GamePage() {
     readyUp,
     addBotToGame,
     removePlayer,
+    chatMessages,
+    sendChatMessage,
   } = useGameSocket();
 
   useEffect(() => {
@@ -52,9 +54,12 @@ export default function GamePage() {
     }
   }, [gameCode, storedUsername, joinRoom]);
 
-  const [isChatOpen, setIsChatOpen] = useState(false);
+  const handleSendMessage = (text: string) => {
+    console.log('handleSendMessage:', text);
+    sendChatMessage(text); // send through the socket
+  };
 
-  const handleLeaveRoom = async () => {
+  const handleLeaveRoom = () => {
     router.push("/");
   };
 
@@ -123,22 +128,33 @@ export default function GamePage() {
           <h2 className="text-2xl font-bold mb-4">Unable to Join Game</h2>
           <p className="text-gray-300 mb-6">{error}</p>
           <div className="space-y-2">
-            {gameCode && storedUsername && (
+            {(gameCode && storedUsername) ? (
+              <div className="flex items-center justify-center gap-2">
+                <Button
+                  onClick={handleLeaveRoom}
+                  className="border-white/20"
+                  variant="outline"
+                  disabled={loading}
+                >
+                  Leave Room
+                </Button>
+                <Button
+                  onClick={() => joinRoom(gameCode, storedUsername)}
+                  className="bg-gradient-to-r from-blue-500 to-cyan-600 mr-2 hover:bg-gradient-to-l hover:border-black/20"
+                  variant="outline"
+                >
+                  Retry
+                </Button>
+              </div>
+            ) :
               <Button
-                onClick={handleLeaveRoom}
-                className="bg-gradient-to-r from-blue-500 to-cyan-600 mr-2"
-                disabled={loading}
+                onClick={() => router.push("/")}
+                variant="outline"
+                className="border-white/20"
               >
-                Leave Room
+                Back to Home
               </Button>
-            )}
-            <Button
-              onClick={() => router.push("/")}
-              variant="outline"
-              className="border-white/20"
-            >
-              Back to Home
-            </Button>
+            }
           </div>
         </div>
       </div>
@@ -181,6 +197,7 @@ export default function GamePage() {
     );
   }
 
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-slate-900/50 to-background text-foreground">
       <ConnectionStatus isConnected={isConnected} roomCode={game?.code} />
@@ -202,7 +219,7 @@ export default function GamePage() {
             </Button>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
               {game?.type?.slice(0, 1)?.toUpperCase()}
-              {game?.type?.slice(1, game?.type?.length)?.replace("-", " ")}
+              {game?.type?.slice(1)?.replace("-", " ")}
             </h1>
           </div>
         </motion.div>
@@ -231,14 +248,6 @@ export default function GamePage() {
           <AnimatePresence mode="wait">{renderGame(game)}</AnimatePresence>
         )}
       </div>
-      {game && (
-        <Chat
-          messages={[]}
-          onSendMessage={() => {}}
-          isOpen={isChatOpen}
-          onToggle={() => setIsChatOpen(!isChatOpen)}
-        />
-      )}
     </div>
   );
 }
