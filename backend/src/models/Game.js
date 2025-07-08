@@ -194,7 +194,10 @@ class Game {
     const humanPlayers = Array.from(this.players.values()).filter(
       (p) => !p.isBot && p.isConnected
     );
-    const allReady = this.readyPlayers.size >= humanPlayers.length;
+    const botPlayers = Array.from(this.players.values()).filter(
+      (p) => p.isBot && p.isConnected
+    );
+    const allReady = (this.readyPlayers.size - botPlayers.length) >= humanPlayers.length;
 
     if (allReady) {
       this.players.forEach(player => {

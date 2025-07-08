@@ -5,7 +5,6 @@ const config = require("../config/config"); // Import config
 const IMPOSTER_GAME_WORD_SETS = require("../data/imposterGameWordSets");
 
 const WORD_SETS = IMPOSTER_GAME_WORD_SETS;
-const { v4: uuidv4 } = require("uuid");
 
 class WordImpostorGame extends Game {
   constructor(hostId, hostName, socketId) {
@@ -15,11 +14,6 @@ class WordImpostorGame extends Game {
     this.impostorId = null;
     this.playerClues = new Map(); // Stores clues given in DISCUSSION phase // playerId -> clue[]
     this.votes = new Map();
-    this.readyPlayers = new Set();
-    this.discussionTimer = null;
-    this.votingTimer = null;
-    this.wordShowTimer = null; // Ensure wordShowTimer is initialized
-    this.phaseStartTime = null;
     this.clueTurnIndex = 0; // New: index of player whose turn it is to submit clue
     this.turnOrder = []; // New: list of playerIds in turn order
     // Store configured durations in milliseconds
@@ -37,8 +31,6 @@ class WordImpostorGame extends Game {
         return this.submitClue(playerId, data.clue);
       case "submitVote": // This action remains, happens during VOTING phase
         return this.submitVote(playerId, data.votedForPlayerId);
-      case "readyUp":
-        return this.readyUp(playerId);
       case "hostEndWordShow":
         return this.hostEndWordShow(playerId);
       case "hostEndDiscussion":
@@ -196,13 +188,13 @@ class WordImpostorGame extends Game {
   triggerBotActions() {
     if (this.phase === GAME_PHASES.DISCUSSION) {
       this.players.forEach((player) => {
-        if (
-          player.isBot &&
-          player.isConnected &&
-          !this.playerClues.has(player.id)
-        ) {
-          this._botSubmitClue(player.id);
-        }
+        // if (
+        //   player.isBot &&
+        //   player.isConnected &&
+        //   !this.playerClues.has(player.id)
+        // ) {
+        //   this._botSubmitClue(player.id);
+        // }
       });
     } else if (this.phase === GAME_PHASES.VOTING) {
       this.players.forEach((player) => {
@@ -214,40 +206,40 @@ class WordImpostorGame extends Game {
   }
 
   _botSubmitClue(botId) {
-    const bot = this.players.get(botId);
-    if (
-      !bot ||
-      !bot.isBot ||
-      this.phase !== GAME_PHASES.DISCUSSION ||
-      this.playerClues.has(botId)
-    ) {
-      // Updated phase
-      return;
-    }
+    // const bot = this.players.get(botId);
+    // if (
+    //   !bot ||
+    //   !bot.isBot ||
+    //   this.phase !== GAME_PHASES.DISCUSSION ||
+    //   this.playerClues.has(botId)
+    // ) {
+    //   // Updated phase
+    //   return;
+    // }
 
-    let clue;
-    const isImposter = this.impostorId === botId;
-    const randomWords = [
-      "Dog",
-      "House",
-      "Window",
-      "Goblin",
-      "Tiger",
-      "Ninja",
-      "Pen",
-      "Famous",
-    ];
-    if (isImposter) {
-      clue = this.currentWord?.hint
-        ? `${randomWords[Math.floor(Math.random() * randomWords.length)]}`
-        : "IDK";
-    } else {
-      clue = this.currentWord?.word ? `${this.currentWord.hint}` : "IDK";
-    }
-    console.log(
-      `Bot ${bot.name} submitting clue: ${clue} (Imposter: ${isImposter})`
-    );
-    this.submitClue(botId, clue);
+    // let clue;
+    // const isImposter = this.impostorId === botId;
+    // const randomWords = [
+    //   "Dog",
+    //   "House",
+    //   "Window",
+    //   "Goblin",
+    //   "Tiger",
+    //   "Ninja",
+    //   "Pen",
+    //   "Famous",
+    // ];
+    // if (isImposter) {
+    //   clue = this.currentWord?.hint
+    //     ? `${randomWords[Math.floor(Math.random() * randomWords.length)]}`
+    //     : "IDK";
+    // } else {
+    //   clue = this.currentWord?.word ? `${this.currentWord.hint}` : "IDK";
+    // }
+    // console.log(
+    //   `Bot ${bot.name} submitting clue: ${clue} (Imposter: ${isImposter})`
+    // );
+    // this.submitClue(botId, clue);
   }
 
   _botSubmitVote(botId) {
@@ -282,11 +274,7 @@ class WordImpostorGame extends Game {
     }
     this._setPhase(GAME_PHASES.WORD_SHOW);
     this.selectWordAndImpostor();
-    this.readyPlayers.clear();
     this.clueTurnIndex = 0;
-    this._clearAllTimers();
-    this.phaseStartTime = Date.now();
-    console.log(`Game ${this.code} transitioning to ${this.phase}`);
     return {
       broadcast: true,
       event: "phaseChanged",
@@ -300,20 +288,17 @@ class WordImpostorGame extends Game {
   _transitionToDiscussion() {
     this._setPhase(GAME_PHASES.DISCUSSION);
     this.playerClues.clear();
-    this.readyPlayers.clear();
     // Set up turn order and index
     this.turnOrder = Array.from(this.players.values())
       .filter((p) => !p.isBot && p.isConnected && !p.isEliminated)
       .map((p) => p.id);
     this.clueTurnIndex = 0;
-    this._clearAllTimers();
-    this.phaseStartTime = Date.now();
-    this.triggerBotActions();
     this._startTimer(
       "discussion",
       this.phaseDurations[GAME_PHASES.DISCUSSION],
       () => this._transitionToVoting()
     );
+    this.triggerBotActions();
     return {
       broadcast: true,
       event: "phaseChanged",
@@ -359,17 +344,6 @@ class WordImpostorGame extends Game {
       event: "phaseChanged",
       data: this.getClientState(),
     };
-  }
-
-  hostEndDiscussion(playerId) {
-    if (!this.players.get(playerId)?.isHost)
-      throw new Error("Only host can end discussion.");
-    if (this.phase !== GAME_PHASES.DISCUSSION)
-      throw new Error(`Cannot end discussion from phase: ${this.phase}`);
-
-    console.log(`Host ${playerId} ending DISCUSSION phase.`);
-    this._clearAllTimers();
-    return this._transitionToVoting();
   }
 
   hostEndVoting(playerId) {
@@ -420,43 +394,7 @@ class WordImpostorGame extends Game {
         isImpostor: playerId === this.impostorId,
       };
     }
-
-    // During DISCUSSION and VOTING (and RESULTS), clues are visible
-    if (
-      this.phase === GAME_PHASES.DISCUSSION ||
-      this.phase === GAME_PHASES.VOTING ||
-      this.phase === GAME_PHASES.RESULTS
-    ) {
-      baseState.clues = Array.from(this.playerClues.entries()).map(
-        ([pId, clues]) => ({
-          playerId: pId,
-          playerName: this.players.get(pId)?.name || "Unknown",
-          clues,
-        })
-      );
-    }
-
-    if (this.phase === GAME_PHASES.RESULTS) {
-      baseState.results = this.getResults();
-      baseState.votes = this.getVoteDetails(); // Send detailed votes
-    }
-
-    // Add isImpostor status for the requesting player if roles are assigned
-    if (this.impostorId && playerId) {
-      baseState.isImpostor = playerId === this.impostorId;
-    } else {
-      // Set to false or null if roles aren't assigned or playerId is null (e.g. for a general game observer if that were a feature)
-      baseState.isImpostor = false;
-    }
-
-    if (this.phase === GAME_PHASES.DISCUSSION) {
-      baseState.turnOrder = this.turnOrder;
-      baseState.currentTurnPlayerId = this.turnOrder
-        ? this.turnOrder[this.clueTurnIndex]
-        : null;
-    }
-
-    return baseState;
+    return data;
   }
 
   getVoteDetails() {
