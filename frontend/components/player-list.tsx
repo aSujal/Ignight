@@ -56,7 +56,7 @@ export function PlayerList({
     }
   }, [isReady, readyUp]);
 
-  console.log(players);
+  // console.log(players);
   return (
     <Card className="backdrop-blur-lg border-border shadow-xl rounded-xl">
       <CardHeader className="pb-4 pt-5 border-b border-border/50">

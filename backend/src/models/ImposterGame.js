@@ -123,13 +123,13 @@ class WordImpostorGame extends Game {
       this.playerClues.set(playerId, []);
     }
 
-    const clue = {
+    const clues = {
       id: crypto.randomUUID?.() || Math.random().toString(36).substr(2, 9), // Unique ID
       text: clueText,
       timestamp: new Date().toISOString(), // Optional
     };
 
-    this.playerClues.get(playerId).push(clue);
+    this.playerClues.get(playerId).push(clues);
 
     const humanPlayersCount = Array.from(this.players.values()).filter(
       (p) => !p.isBot && p.isConnected
@@ -425,7 +425,21 @@ class WordImpostorGame extends Game {
   getClientState(playerId = null) {
     const baseState = super.getClientState(playerId);
 
-    // Add word reveal data for specific player during WORD_SHOW
+    // ✅ Ensure phaseStartTime and timerDuration are always included
+    if (this.phaseStartTime && this._getPhaseTimer()) {
+      const timer = this._getPhaseTimer();
+      const elapsed = Date.now() - this.phaseStartTime;
+
+      baseState.phaseStartTime = this.phaseStartTime; // <- IMPORTANT
+      baseState.timerDuration = Math.floor(timer.duration / 1000); // in seconds
+      baseState.timerRemaining = Math.max(0, Math.floor((timer.duration - elapsed) / 1000));
+    } else {
+      baseState.phaseStartTime = null;
+      baseState.timerDuration = null;
+      baseState.timerRemaining = null;
+    }
+
+    // 🌟 Reveal word to all (or impostor logic)
     if (playerId && this.phase === GAME_PHASES.WORD_SHOW && this.currentWord) {
       const isImpostor = playerId === this.impostorId;
       baseState.gameData = {
@@ -435,15 +449,19 @@ class WordImpostorGame extends Game {
       };
     }
 
-    // Add clues during discussion, voting, and results
+    // 🌟 Clue and turn logic
     if ([GAME_PHASES.DISCUSSION, GAME_PHASES.VOTING, GAME_PHASES.RESULTS].includes(this.phase)) {
-      baseState.clues = Array.from(this.playerClues.entries()).map(([pId, clue]) => ({
+      baseState.clues = Array.from(this.playerClues.entries()).map(([pId, clues]) => ({
         playerId: pId,
         playerName: this.players.get(pId)?.name || "Unknown",
-        clue,
+        clues,
       }));
+      baseState.turnOrder = this.turnOrder;
+      baseState.clueTurnIndex = this.clueTurnIndex;
+      baseState.currentTurnPlayerId = this.turnOrder?.[this.clueTurnIndex] ?? null;
     }
 
+    // 🌟 Voting data
     if ([GAME_PHASES.VOTING, GAME_PHASES.RESULTS].includes(this.phase)) {
       baseState.votes = Array.from(this.votes.entries()).map(([voterId, votedForPlayerId]) => ({
         voterId,
@@ -451,12 +469,12 @@ class WordImpostorGame extends Game {
       }));
     }
 
-    // Add results data
+    // 🌟 Game results
     if (this.phase === GAME_PHASES.RESULTS) {
       baseState.results = this.getResults();
     }
 
-    // Add impostor status for requesting player
+    // 🌟 Impostor flag for this player
     if (this.impostorId && playerId) {
       baseState.isImpostor = playerId === this.impostorId;
     } else {
@@ -465,6 +483,7 @@ class WordImpostorGame extends Game {
 
     return baseState;
   }
+
 }
 
 module.exports = WordImpostorGame;

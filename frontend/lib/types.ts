@@ -38,7 +38,8 @@ export interface GameState {
   maxPlayers: number;
   availableAvatarStyles?: string[];
   isImpostor?: boolean;
-  timerRemaining?: number;
+  phaseStartTime: number | null;
+  timerDuration: number | null;
   currentTurnPlayerId: string;
 }
 

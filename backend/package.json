@@ -8,7 +8,7 @@
     "dev": "nodemon server.js",
     "test": "jest --detectOpenHandles"
   },
-  "author": "Sujal",
+  "author": "Ignight",
   "license": "ISC",
   "dependencies": {
     "cors": "^2.8.5",
