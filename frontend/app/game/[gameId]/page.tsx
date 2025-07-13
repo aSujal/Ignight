@@ -19,6 +19,7 @@ import { GameState, Player } from "@/lib/types";
 import { GAME_PHASES } from "@/lib/enum";
 import { PlayerList } from "@/components/player-list";
 import { GameLobby } from "@/components/game/GameLobby";
+import { ChatDrawer } from "@/components/chat/ChatDrawer";
 
 export default function GamePage() {
   const params = useParams();
@@ -47,6 +48,7 @@ export default function GamePage() {
     sendChatMessage,
     updateAvatar,
   } = useGameSocket();
+  console.info("GamePage loaded with game:", game);
 
   useEffect(() => {
     if (gameCode && storedUsername) {
@@ -67,13 +69,14 @@ export default function GamePage() {
     (p: Player) => p.id === persistentPlayerId
   );
   const isHost = currentPlayer?.isHost;
+  console.log('page.tsx game phase:', game?.phase)
 
   const renderGame = (game: GameState) => {
     switch (game.type) {
       case "word-impostor":
         return (
           <motion.div
-            key="word-impostor-game"
+            key={game.phase} // 👈 important: use phase as key
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
@@ -93,6 +96,7 @@ export default function GamePage() {
               removePlayer={removePlayer}
             />
           </motion.div>
+
         );
       default:
         return (
@@ -247,6 +251,15 @@ export default function GamePage() {
         )}
         {game && game.phase !== GAME_PHASES.WAITING && (
           <AnimatePresence mode="wait">{renderGame(game)}</AnimatePresence>
+        )}
+{/* Chat Drawer */}
+        {game && currentPlayer && (
+          <ChatDrawer
+            players={game.players}
+            currentPlayerId={currentPlayer.id}
+            messages={chatMessages}
+            onSendMessage={handleSendMessage}
+          />
         )}
       </div>
     </div>

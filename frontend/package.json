@@ -1,11 +1,11 @@
 {
-  "name": "my-v0-project",
+  "name": "ignight",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "dev": "next dev -H 0.0.0.0 -p 3000",
+    "start": "next start -H 0.0.0.0 -p 3000",
     "lint": "next lint"
   },
   "dependencies": {
@@ -45,7 +45,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.0.4",
-    "date-fns": "4.1.0",
+    "date-fns": "^3.6.0",
     "embla-carousel-react": "8.5.1",
     "framer-motion": "latest",
     "http": "latest",
@@ -53,9 +53,9 @@
     "lucide-react": "^0.454.0",
     "next": "^15.3.3",
     "next-themes": "^0.4.4",
-    "react": "^19",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "react-day-picker": "8.10.1",
-    "react-dom": "^19",
     "react-hook-form": "^7.54.1",
     "react-resizable-panels": "^2.1.7",
     "react-virtualized-auto-sizer": "^1.0.26",

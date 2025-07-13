@@ -61,8 +61,11 @@ export function DiscussionPhase({
   console.log("game", game);
   return (
     <>
-      {game.timerRemaining !== undefined && (
-        <TimerProgressBar duration={60} remaining={game.timerRemaining} />
+      {game.timerDuration !== undefined && (
+        <TimerProgressBar
+          duration={game.timerDuration}
+          phaseStartTime={game.phaseStartTime}
+        />
       )}
       <div className="w-full flex flex-col items-center justify-center px-4 py-6">
         <Card className="w-full max-w-7xl bg-card/90 backdrop-blur-lg border border-border shadow-xl rounded-2xl">

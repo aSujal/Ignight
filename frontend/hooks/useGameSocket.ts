@@ -76,10 +76,14 @@ export function useGameSocket() {
       setError(null);
     });
 
-    socket.on("gameStateUpdate", (updatedGame: GameState) => {
-      setGame(updatedGame);
-      setError(null);
+    socket.on("phaseChanged", (data: GameState) => {
+      console.log('Phase changed:', data.phase);
+      setGame(data);
       setLoading(false);
+    });
+
+    socket.on("gameStateUpdate", (newGameState: GameState) => {
+      setGame(newGameState);
     });
 
 
@@ -101,6 +105,7 @@ export function useGameSocket() {
       socket.off("disconnect");
       socket.off("roomCreated");
       socket.off("roomJoined");
+      socket.off("phaseChanged");
       socket.off("gameStateUpdate");
       socket.off("chatMessage");
       socket.off("error");

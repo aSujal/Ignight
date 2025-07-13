@@ -26,7 +26,7 @@ export function ChatDrawer({
   const containerRef = useRef<HTMLDivElement>(null);
 
   const currentPlayer = players.find((p) => p.id === currentPlayerId);
-  console.log('messages:',messages);
+  // console.log('messages:',messages);
 
   useEffect(() => {
     if (open && containerRef.current) {
