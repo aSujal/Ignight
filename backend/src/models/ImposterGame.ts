@@ -446,6 +446,70 @@ class WordImpostorGame extends Game {
     });
     return details;
   }
+
+  getClientState(playerId: PlayerId | null = null) {
+  // Call the parent's getClientState to get base state
+  const baseState = super.getClientState(playerId) as any; // You can define a proper type here if you want
+
+  // Phase timer info
+  const timer = this._getPhaseTimer();
+  if (this.phaseStartTime && timer) {
+    const elapsed = Date.now() - this.phaseStartTime;
+
+    baseState.phaseStartTime = this.phaseStartTime;
+    baseState.timerDuration = Math.floor(timer.duration / 1000); // seconds
+    baseState.timerRemaining = Math.max(0, Math.floor((timer.duration - elapsed) / 1000));
+  } else {
+    baseState.phaseStartTime = null;
+    baseState.timerDuration = null;
+    baseState.timerRemaining = null;
+  }
+
+  // Word show phase: reveal word or impostor hint
+  if (playerId && this.phase === GAME_PHASES.WORD_SHOW && this.currentWord) {
+    const isImpostor = playerId === this.impostorId;
+    baseState.gameData = {
+      word: isImpostor ? "Imposter" : this.currentWord.word,
+      hint: this.currentWord.hint,
+      isImpostor,
+    };
+  }
+
+  // Clues, turn order info during Discussion, Voting, or Results
+  if (([GAME_PHASES.DISCUSSION, GAME_PHASES.VOTING, GAME_PHASES.RESULTS] as string[]).includes(this.phase)) {
+    baseState.clues = Array.from(this.playerClues.entries()).map(([pId, clues]) => ({
+      playerId: pId,
+      playerName: this.players.get(pId)?.name ?? "Unknown",
+      clues,
+    }));
+
+    baseState.turnOrder = this.turnOrder;
+    baseState.clueTurnIndex = this.clueTurnIndex;
+    baseState.currentTurnPlayerId = this.turnOrder?.[this.clueTurnIndex] ?? null;
+  }
+
+  // Votes info during Voting or Results
+  if (([GAME_PHASES.VOTING, GAME_PHASES.RESULTS] as string[]).includes(this.phase)) {
+    baseState.votes = Array.from(this.votes.entries()).map(([voterId, votedForPlayerId]) => ({
+      voterId,
+      votedForPlayerId,
+    }));
+  }
+
+  // Results info during Results phase
+  if (this.phase === GAME_PHASES.RESULTS) {
+    baseState.results = this.getResults();
+  }
+
+  // Impostor flag
+  if (this.impostorId && playerId) {
+    baseState.isImpostor = playerId === this.impostorId;
+  } else {
+    baseState.isImpostor = false;
+  }
+
+  return baseState;
+}
 }
 
 export default WordImpostorGame;
