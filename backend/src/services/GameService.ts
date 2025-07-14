@@ -1,30 +1,40 @@
-const Game = require("../models/Game");
-const WordImpostorGame = require("../models/ImposterGame");
-const config = require("../config/config");
+
+import config from '../config/config';
+import { Game } from '../models/Game';
+import WordImpostorGame from '../models/ImposterGame';
 
 class GameService {
+  private games: Map<string, any>;
+  private playerSockets: Map<string, string>;
+
   constructor() {
     this.games = new Map();
     this.playerSockets = new Map();
   }
 
-  createGame(hostId, hostName, gameType, socketId, avatar, numBots = 0) {
+  createGame(
+    hostId: string,
+    hostName: string,
+    gameType: string,
+    socketId: string,
+    avatar: any,
+    numBots = 0
+  ) {
     if (!hostName || !gameType) {
-      throw new Error("Player name and game type are required.");
+      throw new Error('Player name and game type are required.');
     }
 
-    let game;
+    let game: any;
 
     switch (gameType) {
-      case "word-impostor":
-        game = new WordImpostorGame(hostId, hostName, socketId, numBots);
+      case 'word-impostor':
+        game = new WordImpostorGame(hostId, hostName, socketId);
         break;
       default:
-        // Assuming other game types might not support bots or handle them differently
         game = new Game(hostId, hostName, gameType, socketId);
         break;
     }
-    
+
     game.players.get(hostId).applyAvatarData(avatar);
     this.games.set(game.code, game);
     this.playerSockets.set(hostId, socketId);
@@ -34,9 +44,15 @@ class GameService {
     return game;
   }
 
-  joinGame(roomCode, playerId, playerName, socketId, avatar) {
+  joinGame(
+    roomCode: string,
+    playerId: string,
+    playerName: string,
+    socketId: string,
+    avatar: any
+  ) {
     if (!playerName || !roomCode || !playerId) {
-      throw new Error("Player name, room code, and player ID are required.");
+      throw new Error('Player name, room code, and player ID are required.');
     }
 
     const game = this.games.get(roomCode);
@@ -49,12 +65,12 @@ class GameService {
     if (player) {
       game.reconnectPlayer(playerId, playerName, socketId, avatar);
     } else {
-      if (game.phase !== "waiting") {
-        throw new Error("Game already in progress");
+      if (game.phase !== 'waiting') {
+        throw new Error('Game already in progress');
       }
 
       if (game.players.size >= config.maxPlayersPerGame) {
-        throw new Error("Game is full");
+        throw new Error('Game is full');
       }
       player = game.addPlayer(playerId, playerName, socketId, false, avatar);
     }
@@ -63,20 +79,11 @@ class GameService {
     return { game, player };
   }
 
-  disconnectPlayer(socketId) {
+  disconnectPlayer(socketId: string) {
     for (const [gameCode, game] of this.games.entries()) {
       const player = game.getPlayerBySocketId(socketId);
       if (player) {
         game.disconnectPlayer(player.id);
-
-        // const connectedPlayers = Array.from(game.players.values()).filter(
-        //   (p) => p.isConnected
-        // );
-        // if (connectedPlayers.length === 0) {
-        //   this.games.delete(gameCode);
-        //   console.log(`Game ${gameCode} deleted - no connected players`);
-        // }
-
         this.playerSockets.delete(player.id);
         return { game, player };
       }
@@ -84,7 +91,7 @@ class GameService {
     return null;
   }
 
-  getGame(gameCode) {
+  getGame(gameCode: string) {
     return this.games.get(gameCode);
   }
 
@@ -92,7 +99,6 @@ class GameService {
     return Array.from(this.games.values()).map((game) => game.toJson());
   }
 
-  // Clean up old games (call this periodically)
   cleanupOldGames(maxAgeMinutes = config.gameDurationMinutes) {
     const now = new Date();
     const cutoff = new Date(now.getTime() - maxAgeMinutes * 60 * 1000);
@@ -105,7 +111,7 @@ class GameService {
     }
   }
 
-  deleteGame(gameCode) {
+  deleteGame(gameCode: string): boolean {
     const game = this.games.get(gameCode);
     if (game) {
       for (const player of game.players.values()) {
@@ -119,5 +125,4 @@ class GameService {
 }
 
 const gameService = new GameService();
-
-module.exports = gameService;
+export default gameService;

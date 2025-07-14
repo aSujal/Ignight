@@ -1,8 +1,34 @@
-const { GAME_PHASES } = require("../config/enums");
-const config = require("../config/config"); // Import config
+// models/Game.ts
+import { GAME_PHASES } from "../config/enums";
+import config from "../config/config";
 
-class Player {
-  constructor(id, name, socketId, isHost = false, avatar = {}) {
+interface AvatarCustomizations {
+  [key: string]: string | number | boolean | undefined;
+}
+
+interface AvatarData {
+  style?: string;
+  customizations?: AvatarCustomizations;
+}
+
+export class Player {
+  id: string;
+  name: string;
+  socketId: string | null;
+  isHost: boolean;
+  isConnected: boolean;
+  isReady: boolean;
+  isBot: boolean;
+  avatarStyle: string;
+  avatarCustomizations: AvatarCustomizations;
+
+  constructor(
+    id: string,
+    name: string,
+    socketId: string | null,
+    isHost = false,
+    avatar: AvatarData = {}
+  ) {
     this.id = id;
     this.name = name;
     this.socketId = socketId;
@@ -10,30 +36,70 @@ class Player {
     this.isConnected = true;
     this.isReady = false;
     this.isBot = false;
-    this.avatarStyle = avatar?.style || (config.availableAvatarStyles?.[0] || 'micah');
-    this.avatarCustomizations = avatar?.customizations || {};
+    this.avatarStyle = avatar.style || (config.availableAvatarStyles?.[0] ?? "micah");
+    this.avatarCustomizations = avatar.customizations || {};
   }
 
-  applyAvatarData(avatar) {
-    this.avatarStyle = avatar?.style || (config.availableAvatarStyles?.[0] || 'micah');
-    this.avatarCustomizations = avatar?.customizations || {};
+  applyAvatarData(avatar: AvatarData) {
+    this.avatarStyle = avatar.style || (config.availableAvatarStyles?.[0] ?? "micah");
+    this.avatarCustomizations = avatar.customizations || {};
   }
 
-  get avatarUrl() {
+  get avatarUrl(): string {
     const params = new URLSearchParams();
-    params.append('seed', this.id);
+    params.append("seed", this.id);
     Object.entries(this.avatarCustomizations).forEach(([key, value]) => {
-      if (value) {
+      if (value !== undefined && value !== null) {
         params.append(key, String(value));
       }
     });
-    const returnUrl = `https://api.dicebear.com/8.x/${this.avatarStyle}/svg?${params.toString()}`
-    return returnUrl;
+    return `https://api.dicebear.com/8.x/${this.avatarStyle}/svg?${params.toString()}`;
   }
 }
 
-class Game {
-  constructor(hostId, hostName, gameType, socketId) {
+export interface PlayerClientState {
+  id: string;
+  name: string;
+  isHost: boolean;
+  isConnected: boolean;
+  isReady: boolean;
+  isBot: boolean;
+  avatarUrl: string;
+  avatarStyle: string;
+}
+
+export interface GameClientState {
+  code: string;
+  type: string;
+  phase: string;
+  host: string;
+  players: PlayerClientState[];
+  maxPlayers: number;
+  availableAvatarStyles: string[];
+  readyPlayers: string[];
+  timerRemaining: number | null;
+  timerDuration: number | null;
+}
+
+export interface GameActionResult {
+  broadcast: boolean;
+  event: string;
+  data: any;
+  emit?: boolean;
+}
+
+export class Game {
+  code: string;
+  type: string;
+  phase: string;
+  players: Map<string, Player>;
+  host: string;
+  createdAt: Date;
+  readyPlayers: Set<string>;
+  phaseStartTime: number | null;
+  timers: Map<string, NodeJS.Timeout>;
+
+  constructor(hostId: string, hostName: string, gameType: string, socketId: string) {
     this.code = this.generateCode();
     this.type = gameType;
     this.phase = GAME_PHASES.WAITING;
@@ -47,9 +113,32 @@ class Game {
     this.addPlayer(hostId, hostName, socketId, true);
   }
 
-  changeAvatar(playerId, style, parts) {
+  handleAction(playerId: string, action: string, data: any): GameActionResult | { broadcast: false } {
+    switch (action) {
+      case "addBot":
+        return this.addBotPlayer(playerId);
+      case "removePlayer":
+        return this.removePlayer(playerId, data.playerId);
+      case "changeAvatar":
+        return this.changeAvatar(playerId, data.style, data.parts);
+      case "readyUp":
+        return this.readyUp(playerId);
+      default:
+        // Let subclass handle game-specific actions
+        return this._handleGameSpecificAction(playerId, action, data);
+    }
+  }
+
+  _setPhase(newPhase: string) {
+    this.phase = newPhase;
+    this.phaseStartTime = Date.now();
+    this.clearReadyPlayersExceptBots();
+    console.log(`Game ${this.code} transitioning to ${this.phase}`);
+  }
+
+  changeAvatar(playerId: string, style?: string, parts?: AvatarCustomizations): GameActionResult {
     const player = this.players.get(playerId);
-    if(!player) {
+    if (!player) {
       throw new Error("Player not found.");
     }
 
@@ -57,7 +146,7 @@ class Game {
       throw new Error("Invalid avatar style.");
     }
 
-    player.avatarStyle = style;
+    player.avatarStyle = style ?? player.avatarStyle;
     if (parts) {
       player.avatarCustomizations = parts;
     }
@@ -69,15 +158,19 @@ class Game {
     };
   }
 
-  generateCode() {
+  generateCode(): string {
     return Math.random().toString(36).substring(2, 8).toUpperCase();
   }
 
-  addPlayer(id, name, socketId, isHost = false, avatar = {}) {
+  addPlayer(
+    id: string,
+    name: string,
+    socketId: string | null,
+    isHost = false,
+    avatar: AvatarData = {}
+  ): Player {
     if (this.players.size >= config.maxPlayersPerGame) {
-      throw new Error(
-        `Game is full (max ${config.maxPlayersPerGame} players).`
-      );
+      throw new Error(`Game is full (max ${config.maxPlayersPerGame} players).`);
     }
     if (this.players.has(id)) {
       throw new Error(`Player ${id} already exists in game ${this.code}.`);
@@ -87,7 +180,7 @@ class Game {
     return player;
   }
 
-  _createSingleBot() {
+  private _createSingleBot(): Player | null {
     if (this.players.size >= config.maxPlayersPerGame) {
       console.warn(
         `Max players (${config.maxPlayersPerGame}) reached. Cannot add more bots.`
@@ -118,7 +211,7 @@ class Game {
     return botPlayer;
   }
 
-  addBotPlayer(actingPlayerId) {
+  addBotPlayer(actingPlayerId: string): GameActionResult {
     const actor = this.players.get(actingPlayerId);
     if (!actor || !actor.isHost) {
       throw new Error("Only the host can add bot players.");
@@ -140,7 +233,7 @@ class Game {
     };
   }
 
-  removePlayer(actingPlayerId, playerToKickId) {
+  removePlayer(actingPlayerId: string, playerToKickId: string): GameActionResult {
     const actor = this.players.get(actingPlayerId);
     if (!actor || !actor.isHost) {
       throw new Error("Only the host can remove players.");
@@ -167,13 +260,13 @@ class Game {
   clearReadyPlayersExceptBots() {
     this.readyPlayers.forEach((playerId) => {
       const player = this.players.get(playerId);
-      if (!player.isBot) {
+      if (player && !player.isBot) {
         this.readyPlayers.delete(playerId);
       }
     });
   }
 
-  readyUp(playerId) {
+  readyUp(playerId: string): GameActionResult | { broadcast: false } {
     const player = this.players.get(playerId);
     if (!player) throw new Error("Player not found.");
 
@@ -197,10 +290,15 @@ class Game {
     const botPlayers = Array.from(this.players.values()).filter(
       (p) => p.isBot && p.isConnected
     );
-    const allReady = (this.readyPlayers.size - botPlayers.length) >= humanPlayers.length;
 
+    const allReady =
+      this.readyPlayers.size - botPlayers.length >= humanPlayers.length;
+
+      console.log('humanPlayers:', humanPlayers.length);
+      console.log('botPlayers:', botPlayers.length);
     if (allReady) {
-      this.players.forEach(player => {
+      console.log('allReady is true');
+      this.players.forEach((player) => {
         if (!player.isBot) {
           player.isReady = false;
         }
@@ -226,14 +324,14 @@ class Game {
     };
   }
 
-  disconnectPlayer(playerId) {
+  disconnectPlayer(playerId: string): void {
     const player = this.players.get(playerId);
     if (player) {
       player.isConnected = false;
     }
   }
 
-  reconnectPlayer(playerId, name, socketId, avatar) {
+  reconnectPlayer(playerId: string, name: string, socketId: string, avatar: AvatarData) {
     const player = this.players.get(playerId);
     if (player) {
       player.isConnected = true;
@@ -243,47 +341,56 @@ class Game {
     }
   }
 
-  getPlayerBySocketId(socketId) {
+  getPlayerBySocketId(socketId: string): Player | undefined {
     return Array.from(this.players.values()).find(
       (p) => p.socketId === socketId
     );
   }
 
-  _startTimer(timerName, duration, callback) {
+  public _startTimer(timerName: string, duration: number, callback: () => void) {
     this._clearTimer(timerName);
 
     const timerId = setTimeout(() => {
       console.log(
-        `Timer ${timerName} expired in game ${this.code}. Auto-transitioning.`
+        `Timer '${timerName}' finished for game ${this.code} at phase ${this.phase}`
       );
+      this.phaseStartTime = null;
+      this.timers.delete(timerName);
       callback();
     }, duration);
 
+    this.phaseStartTime = Date.now();
     this.timers.set(timerName, timerId);
   }
 
-  _clearTimer(timerName) {
-    const timerId = this.timers.get(timerName);
-    if (timerId) {
-      clearTimeout(timerId);
+  private _clearTimer(timerName: string) {
+    if (this.timers.has(timerName)) {
+      clearTimeout(this.timers.get(timerName));
       this.timers.delete(timerName);
     }
   }
 
-  _clearAllTimers() {
-    this.timers.forEach((timerId) => clearTimeout(timerId));
+  clearAllTimers() {
+    this.timers.forEach((timeoutId) => clearTimeout(timeoutId));
     this.timers.clear();
+    this.phaseStartTime = null;
   }
 
-  _setPhase(newPhase) {
-    this.phase = newPhase;
-    this.phaseStartTime = Date.now();
-    this.clearReadyPlayersExceptBots();
-    console.log(`Game ${this.code} transitioning to ${this.phase}`);
+  _handleAllPlayersReady() {
+    // This method should be overridden in subclasses for game-specific logic.
   }
 
-  getClientState(playerId = null) {
-    const baseState = {
+  _getPhaseTimer(): { duration: number } | null {
+    // This method should be overridden to provide phase-specific timer durations.
+    return null;
+  }
+  
+  _handleGameSpecificAction(playerId: string, action: string, data: any): GameActionResult | { broadcast: false } {
+    throw new Error(`Action ${action} not implemented for game type ${this.type}`);
+  }
+
+  getClientState(playerId: string | null = null): GameClientState {
+    const baseState: GameClientState = {
       code: this.code,
       type: this.type,
       phase: this.phase,
@@ -301,48 +408,17 @@ class Game {
       maxPlayers: config.maxPlayersPerGame,
       availableAvatarStyles: config.availableAvatarStyles,
       readyPlayers: Array.from(this.readyPlayers),
+      timerRemaining: 60,
+      timerDuration: 60,
     };
-    if (this.phaseStartTime && this._getPhaseTimer()) {
-      const timer = this._getPhaseTimer();
+
+    const timer = this._getPhaseTimer();
+    if (this.phaseStartTime && timer) {
       const elapsed = Date.now() - this.phaseStartTime;
       baseState.timerRemaining = Math.max(0, Math.floor((timer.duration - elapsed) / 1000));
       baseState.timerDuration = Math.floor(timer.duration / 1000);
-    } else {
-      baseState.timerRemaining = null;
-      baseState.timerDuration = null;
     }
+
     return baseState;
   }
-
-  handleAction(playerId, action, data) {
-    switch (action) {
-      case "addBot":
-        return this.addBotPlayer(playerId);
-      case "removePlayer":
-        return this.removePlayer(playerId, data.playerId);
-      case "changeAvatar":
-        return this.changeAvatar(playerId, data.style, data.parts);
-      case "readyUp":
-        return this.readyUp(playerId);
-      default:
-        // Let subclass handle game-specific actions
-        return this._handleGameSpecificAction(playerId, action, data);
-    }
-  }
-
-  _handleGameSpecificAction(playerId, action, data) {
-    throw new Error(`Action ${action} not implemented for game type ${this.type}`);
-  }
-
-  _handleAllPlayersReady() {
-    // Override in subclasses to handle what happens when all players are ready
-    console.log("All players ready - subclass should override _handleAllPlayersReady");
-  }
-
-  _getPhaseTimer() {
-    // Override in subclasses to return { duration } for current phase
-    return null;
-  }
 }
-
-module.exports = Game;
