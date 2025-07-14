@@ -11,9 +11,9 @@ export interface Player {
   isConnected: boolean;
   avatarUrl: string;
   avatarStyle?: string;
+  avatarParts?: Record<string, string>;
   isBot?: boolean;
 }
-
 export interface GameState {
   id: string;
   host: string;
@@ -26,33 +26,63 @@ export interface GameState {
     hint: string;
     isImpostor: boolean;
   };
-  clues: {
-    playerId: string;
-    playerName: string;
-    clue: string;
-  }[];
+  clues: PlayerClues[];
   results: {
     impostorId: string;
     mostVotedId: string;
     impostorCaught: boolean;
-    votes: Record<string, string>;
+    votes: Vote[];
   };
-  /**
-   * A mapping of player IDs to the IDs of the players they voted for.
-   */
-  votes: any[];
+  votes: Vote[];
   readyPlayers: string[];
   maxPlayers: number;
   availableAvatarStyles?: string[];
   isImpostor?: boolean;
-  timerRemaining?: number;
+  phaseStartTime: number | null;
+  timerDuration: number | null;
+  currentTurnPlayerId: string;
 }
+
+export type SenderType = "player" | "server";
 
 export interface ChatMessage {
   id: string;
-  playerId: string;
-  playerName: string;
+  senderType: SenderType;
+  playerId?: string;
+  playerName?: string;
   message: string;
   timestamp: Date;
-  type: typeof GAME_PHASES;
+  type: (typeof GAME_PHASES)[keyof typeof GAME_PHASES] | "SYSTEM"; // SYSTEM for server messages
+}
+
+export type Vote = {
+  voterId: string;
+  votedForPlayerId: string;
+};
+
+export type IndividualClue = {
+  id: string; // optional but good for keying in UI
+  text: string;
+  timestamp?: Date;
+};
+
+export type PlayerClues = {
+  playerId: string;
+  playerName: string;
+  clues: IndividualClue[];
+};
+export interface AvatarConfig {
+  style: string;
+  seed: string;
+  hair?: string[];
+  eyes?: string[];
+  mouth?: string[];
+  skinColor?: string[];
+  backgroundColor?: string[];
+}
+
+export interface AvatarPreferences {
+  style: string;
+  seed: string;
+  customizations: Record<string, string>;
 }

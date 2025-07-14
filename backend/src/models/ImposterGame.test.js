@@ -170,24 +170,24 @@ describe('WordImpostorGame', () => {
         // expect(game.phase).toBe(GAME_PHASES.DISCUSSION); // This would be ideal but depends on callback execution
     });
 
-    it('hostSkipWordShow action should transition to DISCUSSION', () => {
+    it('hostEndWordShow action should transition to DISCUSSION', () => {
         game.startGame(hostId); // Move to WORD_SHOW
         expect(game.phase).toBe(GAME_PHASES.WORD_SHOW);
 
-        const actionResult = game.hostSkipWordShow(hostId);
+        const actionResult = game.hostEndWordShow(hostId);
         expect(actionResult.broadcast).toBe(true);
         expect(game.phase).toBe(GAME_PHASES.DISCUSSION);
         expect(game.wordShowTimer).toBeNull(); // Timer should be cleared
     });
 
-    it('hostSkipWordShow should fail if not host', () => {
+    it('hostEndWordShow should fail if not host', () => {
         game.startGame(hostId); // Move to WORD_SHOW
-        expect(() => game.hostSkipWordShow(player1Id)).toThrow('Only host can skip word show.');
+        expect(() => game.hostEndWordShow(player1Id)).toThrow('Only host can skip word show.');
     });
 
-     it('hostSkipWordShow should fail if not in WORD_SHOW phase', () => {
+     it('hostEndWordShow should fail if not in WORD_SHOW phase', () => {
         expect(game.phase).toBe(GAME_PHASES.WAITING); // Initial phase
-        expect(() => game.hostSkipWordShow(hostId)).toThrow('Cannot skip word show from phase: waiting');
+        expect(() => game.hostEndWordShow(hostId)).toThrow('Cannot skip word show from phase: waiting');
     });
 
   });

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Users, Zap, Music, CheckCircle, Loader2, XCircle } from "lucide-react";
+import { Users, Loader2 } from "lucide-react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { games } from "@/data/games";
 import { useGameSocket } from "@/hooks/useGameSocket";
@@ -28,7 +28,7 @@ export default function HomePage() {
 
   const router = useRouter();
 
-  const { isConnected, game, joinRoom, error, createRoom } = useGameSocket();
+  const { isConnected, game, error, createRoom } = useGameSocket();
 
   const handleCreateRoom = async (gameId: string) => {
     if (!playerName.trim()) return;
@@ -52,27 +52,30 @@ export default function HomePage() {
     setPlayerName(value);
   };
 
-  console.log(games);
+  //add this to about page
+  const handleAbout = () => {
+    router.push("/about");
+    //Avatars powered by DiceBear’s “Micah” style by @realvjy, licensed under CC BY 4.0
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-background via-slate-900/50 to-background">
       <ConnectionStatus isConnected={isConnected} roomCode={null} />
-      <div className="relative z-10 container mx-auto px-4 py-8">
+      <div className="relative z-10 container mx-auto py-8">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -50 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
-          className="text-center mb-12"
+          className="text-center mb-10"
         >
-          <h1 className="text-6xl font-bold bg-gradient-to-r from-white via-purple-200 to-cyan-200 bg-clip-text text-transparent mb-4">
+          <h1 className="text-6xl font-bold bg-gradient-to-br from-[crimson] to-orange-300 bg-clip-text text-transparent mb-4">
             Ignight
           </h1>
           <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-            Play amazing multiplayer games with friends online. WebSocket
-            real-time backend
+            Play games with friends online in real-time
           </p>
         </motion.div>
-
         {/* Error Display */}
         {error && (
           <motion.div
@@ -91,12 +94,12 @@ export default function HomePage() {
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2 }}
-          className="max-w-md mx-auto mb-12"
+          className="max-w-md mx-auto mb-8"
         >
           <Card className="bg-white/10 backdrop-blur-lg border-white/20">
             <CardHeader>
               <CardTitle className="text-white text-center">
-                Join the Fun
+                Get Started
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -120,7 +123,7 @@ export default function HomePage() {
                   disabled={!playerName.trim() || !roomCode.trim()}
                   className="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
                 >
-                  Join
+                  Join Room
                 </Button>
               </div>
             </CardContent>
@@ -201,29 +204,6 @@ export default function HomePage() {
             );
           })}
         </div>
-
-        {/* Features */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1, delay: 0.8 }}
-          className="mt-16 text-center"
-        >
-          <div className="flex flex-wrap justify-center gap-6 text-gray-300">
-            <div className="flex items-center gap-2">
-              <Zap className="w-5 h-5 text-yellow-400" />
-              <span>Real-time WebSocket</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Music className="w-5 h-5 text-purple-400" />
-              <span>AI-Generated Content</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-blue-400" />
-              <span>Up to 12 Players</span>
-            </div>
-          </div>
-        </motion.div>
       </div>
     </div>
   );

@@ -9,7 +9,7 @@ interface ScreenLoaderProps {
 
 const ScreenLoader = ({ title, description }: ScreenLoaderProps) => {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex flex-col items-center justify-center text-white">
+    <div className="min-h-screen bg-gradient-to-br from-background via-slate-900/50 to-background flex flex-col items-center justify-center text-white">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}

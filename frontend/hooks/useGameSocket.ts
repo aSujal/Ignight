@@ -1,10 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import type { GameState } from "@/lib/types";
+import type { ChatMessage, GameState } from "@/lib/types";
 import socket from "@/lib/socket";
 import { useRouter } from "next/navigation";
 import { usePersistentPlayerId } from "./useLocalStorage";
+import { v4 as uuidv4 } from 'uuid';
+import { GAME_PHASES } from "@/lib/enum";
+const AVATAR_STORAGE_KEY = "ignight-avatar-preferences";
 
 export function useGameSocket() {
   const [persistentPlayerId] = usePersistentPlayerId();
@@ -12,7 +15,20 @@ export function useGameSocket() {
   const [game, setGame] = useState<GameState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+
   const router = useRouter();
+
+  const getAvatarPreferences = () => {
+    if (typeof window === "undefined") return null;
+    const stored = localStorage.getItem(AVATAR_STORAGE_KEY);
+    try {
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  };
+
   useEffect(() => {
     if (socket.connected) {
       console.log("Socket already connected");
@@ -20,7 +36,7 @@ export function useGameSocket() {
     }
 
     socket.onAny((event, ...args) => {
-      console.log("Event received:", event, args);
+      // console.log("Event received:", event, args);
     });
 
     socket.on("connect_error", (err) => {
@@ -49,24 +65,31 @@ export function useGameSocket() {
 
     socket.on("roomCreated", (game: GameState) => {
       setGame(game);
-      setLoading(false);
       setError(null);
       setLoading(false);
       router.push(`/game/${game.code}`);
     });
 
     socket.on("roomJoined", (game: GameState) => {
-      console.log("roomJoined", game);
       setGame(game);
       setLoading(false);
       setError(null);
     });
 
-    socket.on("gameStateUpdate", (updatedGame: GameState) => {
-      console.log("gameStateUpdate", updatedGame);
-      setGame(updatedGame);
-      setError(null);
+    socket.on("phaseChanged", (data: GameState) => {
+      console.log('Phase changed:', data.phase);
+      setGame(data);
       setLoading(false);
+    });
+
+    socket.on("gameStateUpdate", (newGameState: GameState) => {
+      setGame(newGameState);
+    });
+
+
+    socket.on("chatMessage", (message: ChatMessage) => {
+      console.log("Received chat message:", message);
+      setChatMessages((prev) => [...prev, message]);
     });
 
 
@@ -82,19 +105,26 @@ export function useGameSocket() {
       socket.off("disconnect");
       socket.off("roomCreated");
       socket.off("roomJoined");
+      socket.off("phaseChanged");
       socket.off("gameStateUpdate");
+      socket.off("chatMessage");
       socket.off("error");
     };
   }, [router]);
 
   const createRoom = useCallback(
     (gameType: string, playerName: string) => {
+      const avatar = getAvatarPreferences();
       try {
         setLoading(true);
         socket.emit("createRoom", {
           gameType,
           playerName,
           playerId: persistentPlayerId,
+          avatar: {
+            style: avatar?.style,
+            customizations: avatar?.customizations,
+          },
         });
       } catch (error) {
         const errorMessage =
@@ -109,12 +139,17 @@ export function useGameSocket() {
 
   const joinRoom = useCallback(
     (roomCode: string, playerName: string) => {
+      const avatar = getAvatarPreferences();
       try {
         setLoading(true);
         socket.emit("joinRoom", {
           roomCode,
           playerName,
           playerId: persistentPlayerId,
+          avatar: {
+            style: avatar?.style,
+            customizations: avatar?.customizations,
+          },
         });
       } catch (error) {
         const errorMessage =
@@ -136,7 +171,7 @@ export function useGameSocket() {
   }, [socket, game?.code, persistentPlayerId]);
 
   const startRound = useCallback(() => {
-    console.log("game", game)
+    console.log("game", game);
     socket.emit("gameAction", {
       roomCode: game?.code,
       playerId: persistentPlayerId,
@@ -169,31 +204,45 @@ export function useGameSocket() {
   );
 
   const resetGame = useCallback(() => {
-    console.log("game", game)
     socket.emit("gameAction", {
       roomCode: game?.code,
       playerId: persistentPlayerId,
       action: "resetGame",
     });
   }, [socket, game?.code, persistentPlayerId]);
-  console.log("gameo", game)
 
   // Host actions
-  const hostSkipWordShow = useCallback(() => {
-    socket.emit("gameAction", { roomCode: game?.code, playerId: persistentPlayerId, action: "hostSkipWordShow" });
+  const hostEndWordShow = useCallback(() => {
+    socket.emit("gameAction", {
+      roomCode: game?.code,
+      playerId: persistentPlayerId,
+      action: "hostEndWordShow",
+    });
   }, [socket, game?.code, persistentPlayerId]);
 
   const hostEndDiscussion = useCallback(() => {
-    socket.emit("gameAction", { roomCode: game?.code, playerId: persistentPlayerId, action: "hostEndDiscussion" });
+    socket.emit("gameAction", {
+      roomCode: game?.code,
+      playerId: persistentPlayerId,
+      action: "hostEndDiscussion",
+    });
   }, [socket, game?.code, persistentPlayerId]);
 
   const hostEndVoting = useCallback(() => {
-    socket.emit("gameAction", { roomCode: game?.code, playerId: persistentPlayerId, action: "hostEndVoting" });
+    socket.emit("gameAction", {
+      roomCode: game?.code,
+      playerId: persistentPlayerId,
+      action: "hostEndVoting",
+    });
   }, [socket, game?.code, persistentPlayerId]);
 
   // Player actions
   const readyUp = useCallback(() => {
-    socket.emit("gameAction", { roomCode: game?.code, playerId: persistentPlayerId, action: "readyUp" });
+    socket.emit("gameAction", {
+      roomCode: game?.code,
+      playerId: persistentPlayerId,
+      action: "readyUp",
+    });
   }, [socket, game?.code, persistentPlayerId]);
 
   // New function to add a bot
@@ -205,13 +254,13 @@ export function useGameSocket() {
     });
   }, [socket, game?.code, persistentPlayerId]);
 
-  const updateAvatarStyle = useCallback(
-    (style: string) => {
+  const updateAvatar = useCallback(
+    (style?: string, parts?: Record<string, string>) => {
       socket.emit("gameAction", {
         roomCode: game?.code,
         playerId: persistentPlayerId,
-        action: "changeAvatarStyle",
-        data: { style },
+        action: "changeAvatar",
+        data: { style, parts },
       });
     },
     [socket, game?.code, persistentPlayerId]
@@ -229,25 +278,48 @@ export function useGameSocket() {
     [socket, game?.code, persistentPlayerId]
   );
 
+  const sendChatMessage = useCallback((message: string) => {
+    socket.emit("chatMessage", {
+      roomCode: game?.code,
+      playerId: persistentPlayerId,
+      message,
+    });
+  }, [game?.code, persistentPlayerId]);
+
+  function sendServerMessage(roomCode: string, message: string) {
+    const chatMessage: ChatMessage = {
+      id: uuidv4(),
+      senderType: "server",
+      message,
+      timestamp: new Date(),
+      type: "SYSTEM",
+    };
+    socket.emit("chatMessage", chatMessage);
+  }
+
+
   return {
     isConnected,
     game,
     error,
     loading,
-    createRoom,
-    joinRoom,
-    startGame,
-    startRound,
-    submitClue,
-    submitVote,
-    resetGame,
+    chatMessages,
     // Host actions
-    hostSkipWordShow,
+    startGame,
+    resetGame,
+    startRound,
+    hostEndWordShow,
     hostEndDiscussion,
     hostEndVoting,
     removePlayer,
-    // Player actions
-    readyUp,
     addBotToGame,
+    // Player actions
+    createRoom,
+    joinRoom,
+    readyUp,
+    submitClue,
+    submitVote,
+    sendChatMessage,
+    updateAvatar,
   };
 }

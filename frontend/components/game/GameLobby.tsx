@@ -1,18 +1,16 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
-import { GameState } from "@/lib/types";
+import { GameState, Player } from "@/lib/types";
+import { AvatarCustomizer } from "./avatar/avatar-customizer";
 
 interface GameLobbyProps {
   game: GameState;
   isHost: boolean | undefined;
-  currentPlayer?: {
-    avatarUrl: string;
-    avatarStyle?: string;
-    name: string;
-  };
+  currentPlayer?: Player;
   startGame: () => void;
   addBotToGame: () => void;
+  updateAvatar: (style?: string, parts?: Record<string, string>) => void;
 }
 
 export const GameLobby = ({
@@ -21,10 +19,12 @@ export const GameLobby = ({
   currentPlayer,
   startGame,
   addBotToGame,
+  updateAvatar,
 }: GameLobbyProps) => {
   const minPlayers = game.type === "word-impostor" ? 3 : 2;
   const canStartGame = game.players.length >= minPlayers;
   const isMaxPlayers = game.players.length >= game.maxPlayers;
+
   return (
     <div className="md:col-span-1 space-y-6">
       <Card className="backdrop-blur-lg border-border shadow-2xl rounded-xl">
@@ -78,22 +78,11 @@ export const GameLobby = ({
         </CardContent>
       </Card>
       {currentPlayer && (
-        <Card className="backdrop-blur-lg border-border shadow-2xl rounded-xl">
-          <CardHeader className="text-center pt-5 pb-3">
-            <CardTitle className="text-xl font-semibold">
-              Customize Your Avatar
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 space-y-3 items-center flex flex-col">
-            <Image
-              src={currentPlayer.avatarUrl}
-              alt={`${currentPlayer.name}'s current avatar`}
-              width={80}
-              height={80}
-              className="rounded-full border-3 border-primary shadow-lg mb-3"
-            />
-          </CardContent>
-        </Card>
+        <AvatarCustomizer
+          currentPlayer={currentPlayer}
+          onAvatarChange={updateAvatar}
+          availableAvatarStyles={game.availableAvatarStyles || ["micah"]}
+        />
       )}
     </div>
   );
