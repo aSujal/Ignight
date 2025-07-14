@@ -23,7 +23,6 @@ export function DiscussionPhase({
   readyUp,
   hostEndDiscussion,
 }: DiscussionPhaseProps) {
-  console.log('game:', game);
   const [clue, setClue] = useState("");
   const [persistentPlayerId] = usePersistentPlayerId();
 
@@ -58,7 +57,7 @@ export function DiscussionPhase({
     setClue("");
     toast.success("Clue submitted!");
   };
-  console.log("game", game);
+  
   return (
     <>
       {game.timerDuration !== undefined && (

@@ -49,31 +49,29 @@ export function VotingPhase({
         </Badge>
       );
     }
-    const votes = game.votes?.filter((v) => v.votedForPlayerId === currentPlayerId).map((v) => game.players.find((p) => p.id === v.voterId));
+    const votes = game.votes
+      ?.filter((v) => v.votedForPlayerId === currentPlayerId)
+      .map((v) => game.players.find((p) => p.id === v.voterId));
     if (!votes) return null;
     return (
       <div className="flex items-end max-w-[10rem] flex-wrap gap-1 absolute -top-2 -right-2">
-        {votes.map((player: Player | undefined, index) => (
-          player && (
-            <div
-              key={index}
-              className="relative group"
-            >
-              <Image
-                src={player.avatarUrl}
-                alt={player.name}
-                width={30}
-                height={30}
-                className="rounded-full border border-primary/30 bg-muted"
-              />
-              <span
-                className="absolute bottom-full left-1/2 transform -translate-x-1/2 text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap"
-              >
-                {player.name}
-              </span>
-            </div>
-          )
-        ))}
+        {votes.map(
+          (player: Player | undefined, index) =>
+            player && (
+              <div key={index} className="relative group">
+                <Image
+                  src={player.avatarUrl}
+                  alt={player.name}
+                  width={30}
+                  height={30}
+                  className="rounded-full border border-primary/30 bg-muted"
+                />
+                <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+                  {player.name}
+                </span>
+              </div>
+            )
+        )}
       </div>
     );
   };
@@ -97,7 +95,7 @@ export function VotingPhase({
 
         <div className="bg-white/10 rounded-lg p-4 space-y-3">
           <TimerProgressBar
-            timeRemaining={game.timerRemaining || 0}
+            phaseStartTime={game.phaseStartTime || 0}
             duration={game.timerDuration || 0}
             label="Time remaining"
             className="w-full"
@@ -134,7 +132,11 @@ export function VotingPhase({
                     alt={player.name}
                     width={80}
                     height={80}
-                    className={`rounded-full border-4 ${isPlayerReady ? "border-green-500 shadow-[0_0_8px_2px_rgba(34,197,94,0.6)]" : "border-gray-400 shadow-none"}`}
+                    className={`rounded-full border-4 ${
+                      isPlayerReady
+                        ? "border-green-500 shadow-[0_0_8px_2px_rgba(34,197,94,0.6)]"
+                        : "border-gray-400 shadow-none"
+                    }`}
                   />
                   {player.isHost && (
                     <Crown className="absolute -top-1 -right-1 w-5 h-5 text-yellow-400" />

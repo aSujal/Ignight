@@ -69,7 +69,7 @@ class WordImpostorGame extends Game {
     const player = this.players.get(playerId);
     if (!player?.isHost) throw new Error("Only host can start game");
     if (this.players.size < 3) throw new Error("Need at least 3 players");
-    if (this.readyPlayers.size < this.players.size - this.bots.size)
+    if (this.readyPlayers.size < this.players.size)
       throw new Error("All players must be ready to start the game");
 
     return this._transitionToWordShow();

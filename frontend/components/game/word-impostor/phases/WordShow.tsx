@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { GameState } from "@/lib/types";
 import { usePersistentPlayerId } from "@/hooks/useLocalStorage";
 import { useMemo } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { fadeInUp, slideInFromLeft, staggerContainer } from "@/app/animations";
 
 interface WordShowProps {
   game: GameState;
@@ -10,7 +12,11 @@ interface WordShowProps {
   hostEndWordShow: () => void;
 }
 
-export default function WordShow({ game, readyUp, hostEndWordShow }: WordShowProps) {
+export default function WordShow({
+  game,
+  readyUp,
+  hostEndWordShow,
+}: WordShowProps) {
   const [persistentPlayerId] = usePersistentPlayerId();
 
   const currentPlayer = useMemo(
@@ -24,17 +30,28 @@ export default function WordShow({ game, readyUp, hostEndWordShow }: WordShowPro
   const totalHumanPlayers = game.players.filter((p) => !p.isBot).length;
 
   if (!game?.gameData) return null;
-  console.log(game) 
   const playerAvatars = (
-    <div className="flex md:flex-col md:gap-6 gap-4 justify-center md:justify-start">
+    <motion.div
+      className="flex md:flex-col md:gap-6 gap-4 justify-center md:justify-start"
+      variants={staggerContainer}
+      initial="hidden"
+      animate="visible"
+    >
       {game.players.map((p) => {
         const isReady = game.readyPlayers?.includes(p.id);
         return (
-          <div
+          <motion.div
             key={p.id}
+            variants={fadeInUp}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.95 }}
             className={`relative w-16 h-16 rounded-full overflow-hidden cursor-default
               border-4
-              ${isReady ? "border-green-500 shadow-[0_0_8px_2px_rgba(34,197,94,0.6)]" : "border-gray-400 shadow-none"}
+              ${
+                isReady
+                  ? "border-green-500 shadow-[0_0_8px_2px_rgba(34,197,94,0.6)]"
+                  : "border-gray-400 shadow-none"
+              }
             `}
             title={p.name}
           >
@@ -44,31 +61,46 @@ export default function WordShow({ game, readyUp, hostEndWordShow }: WordShowPro
               className="w-full h-full object-cover"
               draggable={false}
             />
-          </div>
+          </motion.div>
         );
       })}
-    </div>
+    </motion.div>
   );
 
   return (
-    <div className="flex justify-center items-start p-4 max-w-5xl mx-auto min-h-screen">
-      {/* Container for card and avatars on large screens */}
-      <div className="w-full max-w-lg md:flex md:items-start md:gap-8">
-        <Card className="bg-card/90 backdrop-blur-lg border-border shadow-2xl rounded-xl text-center">
-          <CardHeader className="pt-8 pb-4">
-            <CardTitle className="text-2xl font-semibold text-muted-foreground">
-              Your Identity & Word
-            </CardTitle>
-            <div className="mt-2 text-base text-accent-foreground">
-              <span>
-                {game.readyPlayers?.length || 0} / {totalHumanPlayers} Players Ready
-              </span>
-            </div>
+    <div className="flex justify-center">
+      <motion.div
+        variants={slideInFromLeft}
+        initial="hidden"
+        animate="visible"
+        className="w-full max-w-4xl md:flex md:items-start md:gap-8"
+      >
+        <Card className="bg-card/90 backdrop-blur-lg border-border shadow-2xl rounded-xl text-center w-full">
+          <CardHeader>
+            <motion.div variants={fadeInUp}>
+              <CardTitle className="text-2xl font-semibold text-muted-foreground">
+                Your Identity & Word
+              </CardTitle>
+              <div className="mt-2 text-base text-accent-foreground">
+                <span>
+                  {game.readyPlayers?.length || 0} / {game.players?.length}{" "}
+                  Players Ready
+                </span>
+              </div>
+            </motion.div>
           </CardHeader>
 
-          <CardContent className="p-8 space-y-6 min-h-[350px] flex flex-col justify-center items-center">
-            <div
-              className={`text-xl sm:text-2xl md:text-4xl lg:text-6xl font-extrabold tracking-tight p-8 rounded-xl shadow-2xl transition-all duration-300 ease-in-out w-full ${
+          <CardContent className="px-8 space-y-6 flex flex-col justify-center items-center min-h-[350px]">
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{
+                delay: 0.05,
+                type: "spring",
+                stiffness: 200,
+                damping: 15,
+              }}
+              className={`text-xl sm:text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-tight p-8 rounded-xl shadow-2xl transition-all duration-150 ease-in-out w-full ${
                 isCurrentPlayerImpostor
                   ? "bg-gradient-to-br from-destructive via-destructive/90 to-red-700 text-destructive-foreground animate-pulse-slow"
                   : "bg-gradient-to-br from-primary via-primary/90 to-blue-700 text-primary-foreground"
@@ -77,26 +109,39 @@ export default function WordShow({ game, readyUp, hostEndWordShow }: WordShowPro
               {isCurrentPlayerImpostor
                 ? "🤫 YOU ARE THE IMPOSTOR 🤫"
                 : game.gameData.word}
-            </div>
-
-            {isCurrentPlayerImpostor && (
-              <p className="text-2xl text-muted-foreground font-medium pt-2">
-                Hint: <span className="text-accent-foreground">{game.gameData.hint}</span>
-              </p>
-            )}
-
-            {isCurrentPlayerImpostor && (
-              <p className="text-xl text-destructive-foreground/80 font-medium pt-2">
-                Blend in. Don't reveal yourself!
-              </p>
-            )}
+            </motion.div>
+            <AnimatePresence>
+              {isCurrentPlayerImpostor && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ delay: 0.5 }}
+                  className="space-y-4"
+                >
+                  <p className="text-2xl text-muted-foreground font-medium">
+                    Hint:{" "}
+                    <span className="text-accent-foreground">
+                      {game.gameData.hint}
+                    </span>
+                  </p>
+                  <p className="text-xl text-red-400/80 font-medium">
+                    Blend in. Don't reveal yourself!
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Avatars on small screens */}
-            <div className="block md:hidden w-full mt-6">
-              {playerAvatars}
-            </div>
+            <div className="block md:hidden w-full mt-6">{playerAvatars}</div>
 
-            <div className="w-full space-y-3 mt-6">
+            <motion.div 
+                className="w-full space-y-3 mt-6"
+                variants={fadeInUp}
+                initial="hidden"
+                animate="visible"
+                transition={{ delay: 0.7 }}
+              >
               <Button
                 onClick={readyUp}
                 disabled={isPlayerReady}
@@ -115,7 +160,7 @@ export default function WordShow({ game, readyUp, hostEndWordShow }: WordShowPro
                   Skip Phase for All
                 </Button>
               )}
-            </div>
+            </motion.div>
           </CardContent>
         </Card>
 
@@ -123,7 +168,7 @@ export default function WordShow({ game, readyUp, hostEndWordShow }: WordShowPro
         <div className="hidden md:flex md:flex-col md:pt-8">
           {playerAvatars}
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
