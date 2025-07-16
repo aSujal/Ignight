@@ -1,4 +1,4 @@
-const IMPOSTER_GAME_WORD_SETS = [
+export const IMPOSTER_GAME_WORD_SETS = [
     { word: "PIZZA", hint: "Food" },
     { word: "OCEAN", hint: "Water" },
     { word: "GUITAR", hint: "Music" },
@@ -135,7 +135,3 @@ const IMPOSTER_GAME_WORD_SETS = [
     { word: "WAVE", hint: "Water" },
     { word: "SEASHELL", hint: "Water" },
 ];
-
-
-module.exports = 
-    IMPOSTER_GAME_WORD_SETS

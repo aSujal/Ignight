@@ -1,43 +1,42 @@
-//irrelevant for now
+import express, { Request, Response } from 'express';
+import gameService from '../services/GameService';
 
-const express = require("express");
 const router = express.Router();
-const gameService = require("../services/GameService");
 
 // GET /api/games - Get all active games
-router.get("/", (req, res) => {
+router.get('/', (req: Request, res: Response) => {
   try {
     const games = gameService.getAllGames();
     res.json({ success: true, data: games });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 // GET /api/games/:code - Get specific game by code
-router.get("/:code", (req, res) => {
+router.get('/:code', (req: Request, res: Response) => {
   try {
     const game = gameService.getGame(req.params.code);
     if (!game) {
-      return res.status(404).json({ success: false, error: "Game not found" });
+      return res.status(404).json({ success: false, error: 'Game not found' });
     }
     res.json({ success: true, data: game.toJSON() });
-  } catch (error) {
+  } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
 // DELETE /api/games/:code - Delete a game (admin/host only)
-router.delete("/:code", (req, res) => {
+router.delete('/:code', (req: Request, res: Response) => {
   try {
     const deleted = gameService.deleteGame(req.params.code);
     if (!deleted) {
-      return res.status(404).json({ success: false, error: "Game not found" });
+      return res.status(404).json({ success: false, error: 'Game not found' });
     }
-    res.json({ success: true, message: "Game deleted successfully" });
-  } catch (error) {
+    res.json({ success: true, message: 'Game deleted successfully' });
+  } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-module.exports = router;
+export default router;
