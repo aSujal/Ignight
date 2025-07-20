@@ -34,3 +34,6 @@ Thumbs.db
 # Logs
 logs/
 *.log
+.kiro/specs/discussion-phase-improvements/tasks.md
+.kiro/specs/discussion-phase-improvements/requirements.md
+.kiro/specs/discussion-phase-improvements/design.md

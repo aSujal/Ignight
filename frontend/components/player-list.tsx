@@ -51,10 +51,9 @@ export function PlayerList({
   );
 
   const handleReadyUp = useCallback(() => {
-    if (!isReady) {
-      readyUp();
-    }
-  }, [isReady, readyUp]);
+    // Allow toggling ready state
+    readyUp();
+  }, [readyUp]);
 
   // console.log(players);
   return (
@@ -69,7 +68,7 @@ export function PlayerList({
               className={cn(
                 "border-green-500/50 bg-green-500/10 text-green-400 text-xs px-2 py-1",
                 disconnectedPlayers.length > 0 &&
-                  "border-red-500/50 bg-red-500/10 text-red-400"
+                "border-red-500/50 bg-red-500/10 text-red-400"
               )}
             >
               <Wifi className="w-3 h-3 mr-1.5" />
@@ -218,10 +217,9 @@ export function PlayerList({
           <Button
             onClick={handleReadyUp}
             className="text-lg"
-            disabled={isReady}
             variant={isReady ? "secondary" : "default"}
           >
-            {isReady ? "Ready!" : "Ready Up"}
+            {isReady ? "Unready" : "Ready Up"}
           </Button>
         </div>
       </CardContent>

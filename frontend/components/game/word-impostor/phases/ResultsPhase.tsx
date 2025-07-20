@@ -2,6 +2,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { GameState, Player } from "@/lib/types";
+import { usePersistentPlayerId } from "@/hooks/useLocalStorage";
 
 interface ResultsPhaseProps {
   game: GameState;
@@ -9,10 +10,14 @@ interface ResultsPhaseProps {
 }
 
 export function ResultsPhase({ game, resetGame }: ResultsPhaseProps) {
+  const [persistentPlayerId] = usePersistentPlayerId();
+
   if (!game.results) return null;
 
   const impostorPlayer = game.players.find(p => p.id === game.results.impostorId);
   const mostVotedPlayer = game.players.find(p => p.id === game.results.mostVotedId);
+  const currentPlayer = game.players.find(p => p.id === persistentPlayerId);
+  const isHost = currentPlayer?.isHost;
 
   return (
     <Card className="w-full max-w-xl mx-auto bg-card/90 backdrop-blur-lg border-border shadow-2xl rounded-xl text-center">
@@ -24,11 +29,10 @@ export function ResultsPhase({ game, resetGame }: ResultsPhaseProps) {
 
       <CardContent className="p-6 space-y-8">
         <div
-          className={`p-6 rounded-xl shadow-xl text-3xl font-bold transition-all duration-500 ease-in-out transform hover:scale-105 ${
-            game.results.impostorCaught
-              ? "bg-gradient-to-br from-green-500 via-green-600 to-teal-500 text-white"
-              : "bg-gradient-to-br from-red-500 via-red-600 to-rose-700 text-white"
-          }`}
+          className={`p-6 rounded-xl shadow-xl text-3xl font-bold transition-all duration-500 ease-in-out transform hover:scale-105 ${game.results.impostorCaught
+            ? "bg-gradient-to-br from-green-500 via-green-600 to-teal-500 text-white"
+            : "bg-gradient-to-br from-red-500 via-red-600 to-rose-700 text-white"
+            }`}
         >
           {game.results.impostorCaught
             ? "🎉 IMPOSTOR CAUGHT! 🎉"
@@ -88,12 +92,14 @@ export function ResultsPhase({ game, resetGame }: ResultsPhaseProps) {
           </div>
         </div>
 
-        <Button
-          onClick={resetGame}
-          className="w-full mt-8 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground text-xl py-6 rounded-lg shadow-lg hover:from-primary/90 hover:to-primary"
-        >
-          🔁 Play Again
-        </Button>
+        {isHost && (
+          <Button
+            onClick={resetGame}
+            className="w-full mt-8 bg-gradient-to-r from-primary to-primary/80 text-primary-foreground text-xl py-6 rounded-lg shadow-lg hover:from-primary/90 hover:to-primary"
+          >
+            🔁 Play Again
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

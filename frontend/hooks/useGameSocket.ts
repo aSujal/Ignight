@@ -162,11 +162,11 @@ export function useGameSocket() {
     [socket, persistentPlayerId]
   );
 
-  const startGame = useCallback(() => {
+  const forceStartGame = useCallback(() => {
     socket.emit("gameAction", {
       roomCode: game?.code,
       playerId: persistentPlayerId,
-      action: "startGame",
+      action: "forceStartGame",
     });
   }, [socket, game?.code, persistentPlayerId]);
 
@@ -305,7 +305,7 @@ export function useGameSocket() {
     loading,
     chatMessages,
     // Host actions
-    startGame,
+    forceStartGame,
     resetGame,
     startRound,
     hostEndWordShow,

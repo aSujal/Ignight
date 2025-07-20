@@ -6,6 +6,7 @@ import WordImpostorGame from '../models/ImposterGame';
 class GameService {
   private games: Map<string, any>;
   private playerSockets: Map<string, string>;
+  private phaseChangeEmitter?: (gameCode: string, event: any) => void;
 
   constructor() {
     this.games = new Map();
@@ -36,6 +37,12 @@ class GameService {
     }
 
     game.players.get(hostId).applyAvatarData(avatar);
+
+    // Set up phase change callback for this game
+    game.setPhaseChangeCallback((event: any) => {
+      this.emitPhaseChange(game.code, event);
+    });
+
     this.games.set(game.code, game);
     this.playerSockets.set(hostId, socketId);
 
@@ -121,6 +128,18 @@ class GameService {
       return true;
     }
     return false;
+  }
+
+  // Set the phase change emitter callback (called by socket handler)
+  setPhaseChangeEmitter(emitter: (gameCode: string, event: any) => void) {
+    this.phaseChangeEmitter = emitter;
+  }
+
+  // Emit phase change event (called by games)
+  emitPhaseChange(gameCode: string, event: any) {
+    if (this.phaseChangeEmitter) {
+      this.phaseChangeEmitter(gameCode, event);
+    }
   }
 }
 

@@ -13,13 +13,13 @@ import {
 import { ConnectionStatus } from "@/components/connection-status";
 import { useGameSocket } from "@/hooks/useGameSocket";
 import { WordImpostorGame } from "@/components/game/word-impostor/WordImpostorGame";
-import ErrorMessage from "@/components/error-message";
 import ScreenLoader from "@/components/loader";
 import { GameState, Player } from "@/lib/types";
 import { GAME_PHASES } from "@/lib/enum";
 import { PlayerList } from "@/components/player-list";
 import { GameLobby } from "@/components/game/GameLobby";
 import { ChatDrawer } from "@/components/chat/ChatDrawer";
+import { toast } from "sonner";
 
 export default function GamePage() {
   const params = useParams();
@@ -34,7 +34,7 @@ export default function GamePage() {
     loading,
     isConnected,
     joinRoom,
-    startGame,
+    forceStartGame,
     submitClue,
     submitVote,
     resetGame,
@@ -56,6 +56,13 @@ export default function GamePage() {
     }
   }, [gameCode, storedUsername, joinRoom]);
 
+  // Show error as toast instead of persistent message
+  useEffect(() => {
+    if (error && game) {
+      toast.error(error);
+    }
+  }, [error, game]);
+
   const handleSendMessage = (text: string) => {
     console.log('handleSendMessage:', text);
     sendChatMessage(text); // send through the socket
@@ -70,6 +77,7 @@ export default function GamePage() {
   );
   const isHost = currentPlayer?.isHost;
   console.log('page.tsx game phase:', game?.phase)
+  console.log('page.tsx game:', game)
 
   const renderGame = (game: GameState) => {
     switch (game.type) {
@@ -87,13 +95,10 @@ export default function GamePage() {
               submitClue={submitClue}
               submitVote={submitVote}
               resetGame={resetGame}
-              startGame={startGame}
               hostEndWordShow={hostEndWordShow}
               hostEndDiscussion={hostEndDiscussion}
               hostEndVoting={hostEndVoting}
               readyUp={readyUp}
-              addBotToGame={addBotToGame}
-              removePlayer={removePlayer}
             />
           </motion.div>
 
@@ -227,7 +232,7 @@ export default function GamePage() {
             </h1>
           </div>
         </motion.div>
-        {error && <ErrorMessage error={error} />}
+
         {game && game.phase === GAME_PHASES.WAITING && (
           <div className="w-full max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
             <div className="md:col-span-2">
@@ -243,7 +248,7 @@ export default function GamePage() {
               game={game}
               isHost={isHost}
               currentPlayer={currentPlayer}
-              startGame={startGame}
+              forceStartGame={forceStartGame}
               addBotToGame={addBotToGame}
               updateAvatar={updateAvatar}
             />
@@ -252,7 +257,7 @@ export default function GamePage() {
         {game && game.phase !== GAME_PHASES.WAITING && (
           <AnimatePresence mode="wait">{renderGame(game)}</AnimatePresence>
         )}
-{/* Chat Drawer */}
+        {/* Chat Drawer */}
         {game && currentPlayer && (
           <ChatDrawer
             players={game.players}

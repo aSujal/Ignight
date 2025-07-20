@@ -79,6 +79,7 @@ export interface GameClientState {
   readyPlayers: string[];
   timerRemaining: number | null;
   timerDuration: number | null;
+  phaseStartTime: number | null;
 }
 
 export interface GameActionResult {
@@ -98,6 +99,7 @@ export class Game {
   readyPlayers: Set<string>;
   phaseStartTime: number | null;
   timers: Map<string, NodeJS.Timeout>;
+  public _phaseChangeCallback?: (event: GameActionResult) => void;
 
   constructor(hostId: string, hostName: string, gameType: string, socketId: string) {
     this.code = this.generateCode();
@@ -270,13 +272,32 @@ export class Game {
     const player = this.players.get(playerId);
     if (!player) throw new Error("Player not found.");
 
+    // Toggle ready state instead of just setting to true
     if (this.readyPlayers.has(playerId)) {
+      // Unready the player
+      player.isReady = false;
+      this.readyPlayers.delete(playerId);
       console.log(
-        `Player ${playerId} has already readied up in phase ${this.phase}.`
+        `Player ${playerId} unreadied in phase ${this.phase}. Ready players: ${this.readyPlayers.size}`
       );
-      return { broadcast: false };
+
+      return {
+        broadcast: true,
+        event: "playerReadiedUp",
+        data: {
+          playerId,
+          isReady: player.isReady,
+          readyCount: this.readyPlayers.size,
+          totalHumanPlayers: Array.from(this.players.values()).filter(
+            (p) => !p.isBot && p.isConnected
+          ).length,
+          phase: this.phase,
+          allReady: false,
+        },
+      };
     }
 
+    // Ready the player
     player.isReady = true;
     this.readyPlayers.add(playerId);
 
@@ -291,11 +312,7 @@ export class Game {
       (p) => p.isBot && p.isConnected
     );
 
-    const allReady =
-      this.readyPlayers.size - botPlayers.length >= humanPlayers.length;
-
-      console.log('humanPlayers:', humanPlayers.length);
-      console.log('botPlayers:', botPlayers.length);
+    const allReady = this.readyPlayers.size - botPlayers.length >= humanPlayers.length;
     if (allReady) {
       console.log('allReady is true');
       this.players.forEach((player) => {
@@ -304,7 +321,15 @@ export class Game {
         }
       });
       this.clearReadyPlayersExceptBots();
-      this._handleAllPlayersReady();
+
+      // Handle the phase change event if one is returned
+      const phaseChangeEvent = this._handleAllPlayersReady();
+      if (phaseChangeEvent && phaseChangeEvent.broadcast) {
+        console.log(`Phase change event detected: ${phaseChangeEvent.event}`);
+        this._emitPhaseChangeEvent(phaseChangeEvent);
+        return phaseChangeEvent;
+      }
+
       console.log(
         `All ${humanPlayers.length} human players readied up. Ending phase ${this.phase} early.`
       );
@@ -376,7 +401,19 @@ export class Game {
     this.phaseStartTime = null;
   }
 
-  _handleAllPlayersReady() {
+  // Set callback for phase change events (called by GameService)
+  setPhaseChangeCallback(callback: (event: GameActionResult) => void) {
+    this._phaseChangeCallback = callback;
+  }
+
+  // Emit phase change event through callback
+  protected _emitPhaseChangeEvent(event: GameActionResult) {
+    if (this._phaseChangeCallback) {
+      this._phaseChangeCallback(event);
+    }
+  }
+
+  _handleAllPlayersReady(): GameActionResult | void {
     // This method should be overridden in subclasses for game-specific logic.
   }
 
@@ -384,7 +421,7 @@ export class Game {
     // This method should be overridden to provide phase-specific timer durations.
     return null;
   }
-  
+
   _handleGameSpecificAction(playerId: string, action: string, data: any): GameActionResult | { broadcast: false } {
     throw new Error(`Action ${action} not implemented for game type ${this.type}`);
   }
@@ -408,8 +445,9 @@ export class Game {
       maxPlayers: config.maxPlayersPerGame,
       availableAvatarStyles: config.availableAvatarStyles,
       readyPlayers: Array.from(this.readyPlayers),
-      timerRemaining: 60,
-      timerDuration: 60,
+      timerRemaining: null,
+      timerDuration: null,
+      phaseStartTime: this.phaseStartTime,
     };
 
     const timer = this._getPhaseTimer();

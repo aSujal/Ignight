@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "sonner";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -22,12 +23,19 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark bg-background text-foreground">
       <body className={inter.className}>
-        
-    <TooltipProvider>
-      {children}
-    </TooltipProvider>
 
-    </body>
+        <TooltipProvider>
+          {children}
+        </TooltipProvider>
+        <Toaster
+          theme="dark"
+          position="top-center"
+          expand={false}
+          richColors
+          closeButton
+        />
+
+      </body>
     </html>
   );
 }

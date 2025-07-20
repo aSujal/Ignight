@@ -8,7 +8,7 @@ const config = {
   minPlayersForGame: process.env.MIN_PLAYERS_FOR_GAME ? parseInt(process.env.MIN_PLAYERS_FOR_GAME) : 3,
   gameDurationMinutes: process.env.GAME_DURATION_MINUTES ? parseInt(process.env.GAME_DURATION_MINUTES) : 60,
   gameCodeLength: 6,
-  discussionDurationSeconds: process.env.DISCUSSION_DURATION_SECONDS ? parseInt(process.env.DISCUSSION_DURATION_SECONDS) : 60,
+  discussionDurationSeconds: process.env.DISCUSSION_DURATION_SECONDS ? parseInt(process.env.DISCUSSION_DURATION_SECONDS) : 120,
   votingDurationSeconds: process.env.VOTING_DURATION_SECONDS ? parseInt(process.env.VOTING_DURATION_SECONDS) : 30,
 
   // Socket.IO configs

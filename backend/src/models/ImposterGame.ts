@@ -90,6 +90,8 @@ class WordImpostorGame extends Game {
     switch (action) {
       case "startGame":
         return this.startGame(playerId);
+      case "forceStartGame":
+        return this.forceStartGame(playerId);
       case "submitClue":
         return this.submitClue(playerId, data.clue);
       case "submitVote":
@@ -132,9 +134,18 @@ class WordImpostorGame extends Game {
     const player = this.players.get(playerId);
     if (!player?.isHost) throw new Error("Only host can start game");
     if (this.players.size < 3) throw new Error("Need at least 3 players");
-    // if (this.readyPlayers.size < this.players.size - this.bots.size)
-      // throw new Error("All players must be ready to start the game");
+    if (this.readyPlayers.size < this.players.size)
+      throw new Error("All players must be ready to start the game");
 
+    return this._transitionToWordShow();
+  }
+
+  forceStartGame(playerId: PlayerId): PhaseChangeEvent {
+    const player = this.players.get(playerId);
+    if (!player?.isHost) throw new Error("Only host can force start game");
+    if (this.players.size < 3) throw new Error("Need at least 3 players");
+
+    // Force start bypasses ready check - just start the game
     return this._transitionToWordShow();
   }
 
@@ -309,15 +320,21 @@ class WordImpostorGame extends Game {
     this._setPhase(GAME_PHASES.DISCUSSION);
     this.playerClues.clear();
     this.turnOrder = Array.from(this.players.values())
-      .filter((p) => !p.isBot && p.isConnected) //  && !p.isEliminated)         what?
+      .filter((p) => !p.isBot && p.isConnected)
       .map((p) => p.id);
     this.clueTurnIndex = 0;
     this._startTimer(
       "discussion",
       this.phaseDurations[GAME_PHASES.DISCUSSION],
-      () => this._transitionToVoting()
+      () => {
+        // Timer callback - transition to voting phase and emit the event
+        const phaseChangeEvent = this._transitionToVoting();
+        if (this._phaseChangeCallback) {
+          this._phaseChangeCallback(phaseChangeEvent);
+        }
+      }
     );
-    this.triggerBotActions();
+    // this.triggerBotActions();
     console.log('returning: ', {
       broadcast: true,
       event: "phaseChanged",
@@ -334,6 +351,17 @@ class WordImpostorGame extends Game {
     this._setPhase(GAME_PHASES.VOTING);
     this.votes.clear();
     this.triggerBotActions();
+
+    this._startTimer(
+      "voting",
+      this.phaseDurations[GAME_PHASES.VOTING],
+      () => {
+        const phaseChangeEvent = this._transitionToResults();
+        if (this._phaseChangeCallback) {
+          this._phaseChangeCallback(phaseChangeEvent);
+        }
+      }
+    );
     return {
       broadcast: true,
       event: "phaseChanged",
@@ -447,69 +475,55 @@ class WordImpostorGame extends Game {
     return details;
   }
 
+
+
   getClientState(playerId: PlayerId | null = null) {
-  // Call the parent's getClientState to get base state
-  const baseState = super.getClientState(playerId) as any; // You can define a proper type here if you want
+    const baseState = super.getClientState(playerId) as any;
 
-  // Phase timer info
-  const timer = this._getPhaseTimer();
-  if (this.phaseStartTime && timer) {
-    const elapsed = Date.now() - this.phaseStartTime;
+    if (playerId && this.phase === GAME_PHASES.WORD_SHOW && this.currentWord) {
+      const isImpostor = playerId === this.impostorId;
+      baseState.gameData = {
+        word: isImpostor ? "Imposter" : this.currentWord.word,
+        hint: this.currentWord.hint,
+        isImpostor,
+      };
+    }
 
-    baseState.phaseStartTime = this.phaseStartTime;
-    baseState.timerDuration = Math.floor(timer.duration / 1000); // seconds
-    baseState.timerRemaining = Math.max(0, Math.floor((timer.duration - elapsed) / 1000));
-  } else {
-    baseState.phaseStartTime = null;
-    baseState.timerDuration = null;
-    baseState.timerRemaining = null;
+    // Clues, turn order info during Discussion, Voting, or Results
+    if (([GAME_PHASES.DISCUSSION, GAME_PHASES.VOTING, GAME_PHASES.RESULTS] as string[]).includes(this.phase)) {
+      baseState.clues = Array.from(this.playerClues.entries()).map(([pId, clues]) => ({
+        playerId: pId,
+        playerName: this.players.get(pId)?.name ?? "Unknown",
+        clues,
+      }));
+
+      baseState.turnOrder = this.turnOrder;
+      baseState.clueTurnIndex = this.clueTurnIndex;
+      baseState.currentTurnPlayerId = this.turnOrder?.[this.clueTurnIndex] ?? null;
+    }
+
+    // Votes info during Voting or Results
+    if (([GAME_PHASES.VOTING, GAME_PHASES.RESULTS] as string[]).includes(this.phase)) {
+      baseState.votes = Array.from(this.votes.entries()).map(([voterId, votedForPlayerId]) => ({
+        voterId,
+        votedForPlayerId,
+      }));
+    }
+
+    // Results info during Results phase
+    if (this.phase === GAME_PHASES.RESULTS) {
+      baseState.results = this.getResults();
+    }
+
+    // Impostor flag
+    if (this.impostorId && playerId) {
+      baseState.isImpostor = playerId === this.impostorId;
+    } else {
+      baseState.isImpostor = false;
+    }
+
+    return baseState;
   }
-
-  // Word show phase: reveal word or impostor hint
-  if (playerId && this.phase === GAME_PHASES.WORD_SHOW && this.currentWord) {
-    const isImpostor = playerId === this.impostorId;
-    baseState.gameData = {
-      word: isImpostor ? "Imposter" : this.currentWord.word,
-      hint: this.currentWord.hint,
-      isImpostor,
-    };
-  }
-
-  // Clues, turn order info during Discussion, Voting, or Results
-  if (([GAME_PHASES.DISCUSSION, GAME_PHASES.VOTING, GAME_PHASES.RESULTS] as string[]).includes(this.phase)) {
-    baseState.clues = Array.from(this.playerClues.entries()).map(([pId, clues]) => ({
-      playerId: pId,
-      playerName: this.players.get(pId)?.name ?? "Unknown",
-      clues,
-    }));
-
-    baseState.turnOrder = this.turnOrder;
-    baseState.clueTurnIndex = this.clueTurnIndex;
-    baseState.currentTurnPlayerId = this.turnOrder?.[this.clueTurnIndex] ?? null;
-  }
-
-  // Votes info during Voting or Results
-  if (([GAME_PHASES.VOTING, GAME_PHASES.RESULTS] as string[]).includes(this.phase)) {
-    baseState.votes = Array.from(this.votes.entries()).map(([voterId, votedForPlayerId]) => ({
-      voterId,
-      votedForPlayerId,
-    }));
-  }
-
-  // Results info during Results phase
-  if (this.phase === GAME_PHASES.RESULTS) {
-    baseState.results = this.getResults();
-  }
-
-  // Impostor flag
-  if (this.impostorId && playerId) {
-    baseState.isImpostor = playerId === this.impostorId;
-  } else {
-    baseState.isImpostor = false;
-  }
-
-  return baseState;
-}
 }
 
 export default WordImpostorGame;

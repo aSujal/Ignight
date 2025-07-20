@@ -10,27 +10,24 @@ interface WordImpostorGameProps {
   submitClue: (clue: string) => void;
   submitVote: (playerId: string) => void;
   resetGame: () => void;
-  startGame: () => void;
   hostEndWordShow: () => void;
   hostEndDiscussion: () => void;
   hostEndVoting: () => void;
   readyUp: () => void;
-  addBotToGame: () => void;
-  removePlayer: (playerId: string) => void;
 }
 
 export function WordImpostorGame(props: WordImpostorGameProps) {
-  const {game} = props;
+  const { game } = props;
 
   switch (game.phase) {
     case GAME_PHASES.WORD_SHOW:
-      return <WordShow game={game} readyUp={props.readyUp} hostEndWordShow={props.hostEndWordShow}/>;
+      return <WordShow game={game} readyUp={props.readyUp} hostEndWordShow={props.hostEndWordShow} />;
     case GAME_PHASES.DISCUSSION:
-      return <DiscussionPhase game={game} readyUp={props.readyUp} hostEndDiscussion={props.hostEndDiscussion} submitClue={props.submitClue}/>;
+      return <DiscussionPhase game={game} readyUp={props.readyUp} hostEndDiscussion={props.hostEndDiscussion} submitClue={props.submitClue} />;
     case GAME_PHASES.VOTING:
-      return <VotingPhase game={game} voteForPlayer={props.submitVote} readyUp={props.readyUp} hostEndVoting={props.hostEndVoting}/>;
+      return <VotingPhase game={game} voteForPlayer={props.submitVote} readyUp={props.readyUp} hostEndVoting={props.hostEndVoting} />;
     case GAME_PHASES.RESULTS:
-      return <ResultsPhase game={game} resetGame={props.resetGame}/>;
+      return <ResultsPhase game={game} resetGame={props.resetGame} />;
     default:
       return <div className="text-center text-muted-foreground mt-10">Unknown game phase.</div>;
   }
